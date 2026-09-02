@@ -13,6 +13,12 @@ If evals fail, the workflow is red and production traffic stays on the previous 
 
 This is **not** a replacement for [Getting Started with Cortex Agent Evaluations](https://www.snowflake.com/en/developers/guides/getting-started-with-cortex-agent-evaluations/). That guide teaches evals. This repo shows how evals **gate a versioned deploy**.
 
+## Credits
+
+This public demo is derived from the internal [snowflake-eng/pm-agents](https://github.com/snowflake-eng/pm-agents) repo. That project established the Cortex project layout, growth analytics semantic view and agent, Snowflake CLI deploy pattern, and GitHub Action that publishes YAML to Snowflake.
+
+GitHub does not allow a private-to-public fork, so this is a new public repository rather than a GitHub fork. The semantic view, agent story, and CI/CD skeleton come from that work. This copy adds synthetic demo data, native agent versioning, and an eval gate before promotion.
+
 ## What you will build
 
 - Synthetic growth tables (`SIGNUPS`, `TOUCHPOINTS`, `USER_ACTIVITY`) in `PM_AGENTS_DEMO.APP`
@@ -175,6 +181,7 @@ sql/setup.sql                  demo objects + seed data
 
 ## Related docs
 
+- [snowflake-eng/pm-agents](https://github.com/snowflake-eng/pm-agents) — original internal repo this demo is based on
 - [Cortex Agent versioning](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-versioning)
 - [Cortex Agent evaluations](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-agents-evaluations)
 - [Git-backed Workspaces](https://docs.snowflake.com/en/user-guide/ui-snowsight/workspaces-git)
