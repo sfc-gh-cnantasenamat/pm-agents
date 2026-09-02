@@ -1,4 +1,4 @@
-# Growth Agent CI/CD with native evals
+# Version and promote Cortex Agents with Git and evals
 
 Demonstrate Snowflake agent **versioning** and **CI/CD** using the same YAML in GitHub and in a git-backed Snowsight Workspace.
 
