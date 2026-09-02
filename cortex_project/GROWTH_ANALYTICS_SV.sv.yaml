@@ -1,0 +1,822 @@
+name: GROWTH_ANALYTICS_SV
+description: "Growth analytics for user acquisition, retention, and attribution. Supports\
+  \ BI dashboards and conversational analytics. Demonstrates advanced semantic view\
+  \ features including filters, time dimensions, private metrics, and derived metrics."
+tables:
+  - name: SIGNUPS
+    description: "User signup events with acquisition channel and conversion data.\
+      \ Primary table for signup volume, conversion rates, and revenue analysis."
+    base_table:
+      database: PM_AGENTS_DEMO
+      schema: APP
+      table: SIGNUPS
+    primary_key:
+      columns:
+        - SIGNUP_ID
+    filters:
+      - name: paid_users_only
+        synonyms:
+          - paid
+          - converted
+          - paying customers
+        description: Filter to include only users who converted to paid plans
+        expr: converted_to_paid = TRUE
+      - name: enterprise_tier
+        synonyms:
+          - enterprise
+          - enterprise customers
+        description: Filter for enterprise plan users only
+        expr: plan_type = 'enterprise'
+      - name: last_30_days
+        synonyms:
+          - recent
+          - last month
+        description: Filter for signups in the last 30 days
+        expr: "signup_date >= DATEADD('day', -30, CURRENT_DATE())"
+      - name: last_90_days
+        synonyms:
+          - last quarter
+        description: Filter for signups in the last 90 days
+        expr: "signup_date >= DATEADD('day', -90, CURRENT_DATE())"
+      - name: current_year
+        synonyms:
+          - this year
+          - ytd
+        description: Filter for signups in the current year
+        expr: "DATE_PART('year', signup_date) = DATE_PART('year', CURRENT_DATE())"
+    dimensions:
+      - name: CONVERTED_TO_PAID
+        synonyms:
+          - converted
+          - is paid
+        description: Whether user converted to a paid plan
+        expr: converted_to_paid
+        data_type: BOOLEAN
+      - name: COUNTRY
+        synonyms:
+          - nation
+          - location
+        description: User's country at time of signup
+        expr: country
+        data_type: VARCHAR(100)
+      - name: DEVICE_TYPE
+        synonyms:
+          - device
+          - platform
+        description: Device type used for signup
+        expr: device_type
+        data_type: VARCHAR(20)
+        sample_values:
+          - desktop
+          - mobile
+          - tablet
+      - name: PLAN_TYPE
+        synonyms:
+          - plan
+          - subscription type
+          - tier
+        description: Subscription plan type selected at signup
+        expr: plan_type
+        data_type: VARCHAR(20)
+        sample_values:
+          - free
+          - starter
+          - professional
+          - enterprise
+      - name: REFERRAL_SOURCE
+        description: Referral source if user came via referral
+        expr: referral_source
+        data_type: VARCHAR(100)
+      - name: SIGNUP_CHANNEL
+        synonyms:
+          - channel
+          - acquisition channel
+          - source
+          - marketing channel
+        description: Primary acquisition channel where the user signed up
+        expr: signup_channel
+        data_type: VARCHAR(50)
+        sample_values:
+          - organic_search
+          - paid_search
+          - social_media
+          - email_marketing
+          - referral
+          - direct
+      - name: SIGNUP_ID
+        description: Unique identifier for each signup event
+        expr: signup_id
+        data_type: VARCHAR(36)
+        unique: true
+      - name: USER_EMAIL
+        description: User email address - used for joining across tables
+        expr: user_email
+        data_type: VARCHAR(255)
+        unique: true
+    time_dimensions:
+      - name: SIGNUP_DATE
+        synonyms:
+          - date
+          - signup day
+        description: Date when user signed up - primary time dimension
+        expr: signup_date
+        data_type: DATE
+      - name: SIGNUP_MONTH
+        synonyms:
+          - month
+          - cohort
+          - cohort month
+          - signup cohort
+        description: Month of signup - primary cohort identifier
+        expr: "DATE_TRUNC('month', signup_date)"
+        data_type: DATE
+      - name: SIGNUP_QUARTER
+        synonyms:
+          - quarter
+          - qtr
+        description: Quarter of signup
+        expr: "DATE_TRUNC('quarter', signup_date)"
+        data_type: DATE
+      - name: SIGNUP_WEEK
+        synonyms:
+          - week
+        description: Week of signup for weekly cohort analysis
+        expr: "DATE_TRUNC('week', signup_date)"
+        data_type: DATE
+      - name: SIGNUP_YEAR
+        synonyms:
+          - year
+        description: Year of signup
+        expr: "DATE_PART('year', signup_date)"
+        data_type: "NUMBER(4,0)"
+    facts:
+      - name: CONVERTED_FLAG
+        description: "1 if converted to paid, 0 otherwise (helper for aggregations)"
+        expr: CASE WHEN converted_to_paid THEN 1 ELSE 0 END
+        data_type: "NUMBER(1,0)"
+        access_modifier: private_access
+      - name: MRR_AMOUNT
+        synonyms:
+          - revenue
+          - mrr
+          - payment
+        description: Monthly recurring revenue from this user
+        expr: mrr_amount
+        data_type: "NUMBER(10,2)"
+        access_modifier: public_access
+    metrics:
+      - name: AVG_MRR_AMOUNT
+        description: "Calculates the average monthly recurring revenue (MRR) per user\
+          \ row. Use when questions ask about 'average revenue', 'average MRR', 'ARPU',\
+          \ 'typical revenue per user', or 'average payment'. Commonly used with a\
+          \ filter on converted_to_paid = TRUE to measure average revenue among paying\
+          \ customers, and can be broken down by plan_type or signup_channel to compare\
+          \ revenue across segments."
+        expr: AVG(mrr_amount)
+        access_modifier: public_access
+      - name: AVG_MRR_PER_USER
+        description: "Calculates the average monthly recurring revenue (MRR) per user\
+          \ across the selected population. Use when questions ask about 'average\
+          \ revenue', 'average MRR', 'ARPU', 'typical revenue per user', or 'average\
+          \ payment amount'. Helps assess revenue quality by plan type, acquisition\
+          \ channel, or cohort, and supports pricing and segmentation decisions."
+        expr: AVG(mrr_amount)
+        access_modifier: public_access
+      - name: AVG_REVENUE
+        synonyms:
+          - average revenue
+          - avg mrr
+          - arpu
+        description: Average MRR per converted user
+        expr: "ROUND(AVG(mrr_amount), 2)"
+        access_modifier: public_access
+      - name: CONVERSION_RATE
+        synonyms:
+          - cvr
+          - conversion percentage
+          - percent converted
+        description: Percentage of signups that converted to paid
+        expr: "ROUND(SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 /\
+          \ NULLIF(COUNT(signup_id), 0), 1)"
+        access_modifier: public_access
+      - name: CUMULATIVE_REVENUE
+        synonyms:
+          - running revenue
+          - revenue to date
+        description: Running total of revenue from start of period
+        expr: SUM(signups.total_revenue) OVER (PARTITION BY EXCLUDING signups.signup_date
+          ORDER BY signups.signup_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT
+          ROW)
+        access_modifier: public_access
+      - name: CUMULATIVE_SIGNUPS
+        synonyms:
+          - running total
+          - total to date
+          - ytd signups
+        description: Running total of signups from start of period
+        expr: SUM(signups.total_signups) OVER (PARTITION BY EXCLUDING signups.signup_date
+          ORDER BY signups.signup_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT
+          ROW)
+        access_modifier: public_access
+      - name: ROLLING_30_DAY_CONVERSION_RATE
+        synonyms:
+          - monthly moving conversion rate
+          - 30 day cvr
+        description: Rolling 30-day conversion rate for trend smoothing
+        expr: "AVG(signups.conversion_rate) OVER (PARTITION BY EXCLUDING signups.signup_date,\
+          \ signups.signup_month ORDER BY signups.signup_date RANGE BETWEEN INTERVAL\
+          \ '29 days' PRECEDING AND CURRENT ROW)"
+        access_modifier: public_access
+      - name: ROLLING_7_DAY_SIGNUPS
+        synonyms:
+          - 7 day rolling average
+          - weekly moving average
+          - rolling average signups
+        description: Rolling 7-day average of signups for trend analysis
+        expr: "AVG(signups.total_signups) OVER (PARTITION BY EXCLUDING signups.signup_date,\
+          \ signups.signup_month ORDER BY signups.signup_date RANGE BETWEEN INTERVAL\
+          \ '6 days' PRECEDING AND CURRENT ROW)"
+        access_modifier: public_access
+      - name: SIGNUPS_VS_7_DAYS_AGO
+        synonyms:
+          - previous week signups
+          - wow signups
+        description: Signup count from 7 days ago for week-over-week comparison
+        expr: "LAG(signups.total_signups, 7) OVER (PARTITION BY EXCLUDING signups.signup_date,\
+          \ signups.signup_month ORDER BY signups.signup_date)"
+        access_modifier: public_access
+      - name: TOTAL_CONVERSIONS
+        synonyms:
+          - conversions
+          - paid users
+          - converted users
+        description: Total number of users who converted to paid
+        expr: SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END)
+        access_modifier: public_access
+      - name: TOTAL_CONVERTED_FLAG
+        description: Sum of converted flags (helper metric)
+        expr: SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END)
+        access_modifier: private_access
+      - name: TOTAL_REVENUE
+        synonyms:
+          - revenue
+          - total mrr
+          - total payments
+        description: Total MRR revenue from converted users
+        expr: SUM(mrr_amount)
+        access_modifier: public_access
+      - name: TOTAL_SIGNUPS
+        synonyms:
+          - signups
+          - signup count
+          - number of signups
+          - how many signups
+        description: Total count of signups
+        expr: COUNT(signup_id)
+        access_modifier: public_access
+      - name: UNIQUE_COUNTRIES
+        synonyms:
+          - countries
+          - country count
+        description: Count of distinct countries
+        expr: COUNT(DISTINCT country)
+        access_modifier: public_access
+      - name: UNIQUE_USERS
+        synonyms:
+          - users
+          - user count
+          - cohort size
+        description: Count of distinct users
+        expr: COUNT(DISTINCT user_email)
+        access_modifier: public_access
+      - name: overall_conversion_rate
+        description: Calculates the percentage of signups that converted to a paid plan by dividing the count of converted users by the total signup count (using NULLIF to safely handle zero denominators), multiplied by 100. Use when questions ask about 'conversion rate', 'overall conversion rate', 'percent converted', 'what share of signups became paying customers', or 'how effective is our acquisition'. Helps benchmark channel performance, track conversion trends over time, and compare conversion rates across signup channels or cohorts.
+        expr: SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0)
+    unique_keys:
+      - columns:
+          - USER_EMAIL
+  - name: TOUCHPOINTS
+    description: "Marketing touchpoints before signup for multi-touch attribution\
+      \ analysis. Tracks channel interactions, campaigns, and ad spend."
+    base_table:
+      database: PM_AGENTS_DEMO
+      schema: APP
+      table: TOUCHPOINTS
+    primary_key:
+      columns:
+        - TOUCHPOINT_ID
+    filters:
+      - name: paid_channels_only
+        synonyms:
+          - paid ads
+          - advertising
+        description: Filter for paid advertising channels only
+        expr: "channel IN ('google_ads', 'facebook_ads', 'linkedin_ads')"
+      - name: organic_channels_only
+        synonyms:
+          - organic
+          - free channels
+        description: Filter for organic (non-paid) channels
+        expr: "channel IN ('organic_search', 'blog', 'email', 'webinar')"
+    dimensions:
+      - name: CAMPAIGN_NAME
+        synonyms:
+          - campaign
+          - marketing campaign
+        description: Marketing campaign name
+        expr: campaign_name
+        data_type: VARCHAR(100)
+      - name: CHANNEL
+        synonyms:
+          - marketing channel
+          - touchpoint channel
+          - attribution channel
+          - touch channel
+        description: Marketing channel of this touchpoint
+        expr: channel
+        data_type: VARCHAR(50)
+        sample_values:
+          - google_ads
+          - facebook_ads
+          - linkedin_ads
+          - email
+          - organic_search
+          - blog
+          - webinar
+      - name: CONTENT_TYPE
+        description: Type of content for this touchpoint
+        expr: content_type
+        data_type: VARCHAR(50)
+        sample_values:
+          - content
+          - email
+          - ad
+      - name: TOUCHPOINT_ID
+        description: Unique touchpoint identifier
+        expr: touchpoint_id
+        data_type: VARCHAR(36)
+        unique: true
+      - name: USER_EMAIL
+        description: User email for joining to signups
+        expr: user_email
+        data_type: VARCHAR(255)
+    time_dimensions:
+      - name: TOUCHPOINT_DATE
+        synonyms:
+          - touch date
+          - interaction date
+        description: Date/time of touchpoint
+        expr: touchpoint_date
+        data_type: TIMESTAMP_LTZ(9)
+      - name: TOUCHPOINT_MONTH
+        description: Month of touchpoint
+        expr: "DATE_TRUNC('month', touchpoint_date)"
+        data_type: TIMESTAMP_LTZ(9)
+    facts:
+      - name: AD_SPEND
+        synonyms:
+          - spend
+          - cost
+          - ad cost
+        description: Ad spend for this touchpoint
+        expr: ad_spend
+        data_type: "NUMBER(10,2)"
+        access_modifier: public_access
+      - name: CLICKS
+        description: Number of clicks from this touchpoint
+        expr: clicks
+        data_type: "NUMBER(38,0)"
+        access_modifier: public_access
+      - name: IMPRESSIONS
+        description: Number of impressions for this touchpoint
+        expr: impressions
+        data_type: "NUMBER(38,0)"
+        access_modifier: public_access
+    metrics:
+      - name: AVG_TOUCHPOINTS_PER_USER
+        synonyms:
+          - touches per user
+          - average touches
+        description: Average touchpoints per user
+        expr: "ROUND(COUNT(touchpoint_id) * 1.0 / NULLIF(COUNT(DISTINCT user_email),\
+          \ 0), 1)"
+        access_modifier: public_access
+      - name: CLICK_THROUGH_RATE
+        synonyms:
+          - ctr
+        description: Click-through rate (clicks / impressions)
+        expr: "ROUND(SUM(clicks) * 100.0 / NULLIF(SUM(impressions), 0), 2)"
+        access_modifier: public_access
+      - name: COST_PER_CLICK
+        synonyms:
+          - cpc
+        description: Average cost per click
+        expr: "ROUND(SUM(ad_spend) / NULLIF(SUM(clicks), 0), 2)"
+        access_modifier: public_access
+      - name: COST_PER_THOUSAND_IMPRESSIONS
+        synonyms:
+          - cpm
+        description: Cost per thousand impressions (CPM)
+        expr: "ROUND(SUM(ad_spend) * 1000.0 / NULLIF(SUM(impressions), 0), 2)"
+        access_modifier: public_access
+      - name: CUMULATIVE_AD_SPEND
+        synonyms:
+          - spend to date
+          - running ad spend
+        description: Running total of ad spend
+        expr: SUM(touchpoints.total_ad_spend) OVER (PARTITION BY EXCLUDING touchpoints.touchpoint_date
+          ORDER BY touchpoints.touchpoint_date ROWS BETWEEN UNBOUNDED PRECEDING AND
+          CURRENT ROW)
+        access_modifier: public_access
+      - name: ROLLING_7_DAY_AD_SPEND
+        synonyms:
+          - weekly average spend
+          - 7 day spend
+        description: Rolling 7-day average of ad spend
+        expr: "AVG(touchpoints.total_ad_spend) OVER (PARTITION BY EXCLUDING touchpoints.touchpoint_date,\
+          \ touchpoints.touchpoint_month ORDER BY touchpoints.touchpoint_date RANGE\
+          \ BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW)"
+        access_modifier: public_access
+      - name: ROLLING_7_DAY_CTR
+        synonyms:
+          - weekly average ctr
+          - 7 day ctr
+        description: Rolling 7-day click-through rate
+        expr: "AVG(touchpoints.click_through_rate) OVER (PARTITION BY EXCLUDING touchpoints.touchpoint_date,\
+          \ touchpoints.touchpoint_month ORDER BY touchpoints.touchpoint_date RANGE\
+          \ BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW)"
+        access_modifier: public_access
+      - name: TOTAL_AD_SPEND
+        synonyms:
+          - ad spend
+          - marketing spend
+          - total spend
+        description: Total advertising spend
+        expr: SUM(ad_spend)
+        access_modifier: public_access
+      - name: TOTAL_CLICKS
+        description: Total clicks across touchpoints
+        expr: SUM(clicks)
+        access_modifier: public_access
+      - name: TOTAL_IMPRESSIONS
+        description: Total impressions across touchpoints
+        expr: SUM(impressions)
+        access_modifier: public_access
+      - name: TOTAL_TOUCHPOINTS
+        synonyms:
+          - touchpoints
+          - touches
+          - interactions
+        description: Total number of touchpoints
+        expr: COUNT(touchpoint_id)
+        access_modifier: public_access
+      - name: UNIQUE_USERS_TOUCHED
+        synonyms:
+          - users touched
+          - reach
+        description: Distinct users with touchpoints
+        expr: COUNT(DISTINCT user_email)
+        access_modifier: public_access
+      - name: AVG_COST_PER_CLICK_PER_USER
+        description: For each user, computes their own cost per click (their total
+          ad spend divided by their total clicks), then averages that per-user cost
+          per click across all users.
+        expr: AVG(CASE WHEN ROW_NUMBER() OVER (PARTITION BY user_email ORDER BY touchpoint_id)
+          = 1 THEN SUM(ad_spend) OVER (PARTITION BY user_email) / NULLIF(SUM(clicks)
+          OVER (PARTITION BY user_email), 0) END)
+  - name: USER_ACTIVITY
+    description: "Post-signup user engagement for retention analysis. Tracks feature\
+      \ usage, session duration, and activity patterns."
+    base_table:
+      database: PM_AGENTS_DEMO
+      schema: APP
+      table: USER_ACTIVITY
+    primary_key:
+      columns:
+        - ACTIVITY_ID
+    filters:
+      - name: high_engagement
+        synonyms:
+          - engaged
+          - power users
+        description: Filter for sessions with high engagement (>30 min or >10 actions)
+        expr: session_duration_minutes > 30 OR actions_count > 10
+      - name: core_features
+        description: Filter for core product features usage
+        expr: "feature_used IN ('report_create', 'data_import', 'api_call', 'integration_setup')"
+    dimensions:
+      - name: ACTIVITY_ID
+        description: Unique activity identifier
+        expr: activity_id
+        data_type: VARCHAR(36)
+        unique: true
+      - name: FEATURE_USED
+        synonyms:
+          - feature
+          - action type
+          - event type
+        description: Feature or action performed
+        expr: feature_used
+        data_type: VARCHAR(100)
+        sample_values:
+          - dashboard_view
+          - report_create
+          - data_import
+          - export_csv
+          - share_report
+          - api_call
+          - integration_setup
+          - team_invite
+      - name: IS_ACTIVE_DAY
+        description: Whether this counts as an active day
+        expr: is_active_day
+        data_type: BOOLEAN
+      - name: SIGNUP_ID
+        description: Foreign key to signups table
+        expr: signup_id
+        data_type: VARCHAR(36)
+    time_dimensions:
+      - name: ACTIVITY_DATE
+        synonyms:
+          - event date
+          - action date
+        description: Date of activity
+        expr: activity_date
+        data_type: DATE
+      - name: ACTIVITY_MONTH
+        description: Month of activity
+        expr: "DATE_TRUNC('month', activity_date)"
+        data_type: DATE
+      - name: ACTIVITY_WEEK
+        description: Week of activity
+        expr: "DATE_TRUNC('week', activity_date)"
+        data_type: DATE
+    facts:
+      - name: ACTIONS_COUNT
+        synonyms:
+          - actions
+          - action count
+        description: Number of actions in this session
+        expr: actions_count
+        data_type: "NUMBER(38,0)"
+        access_modifier: public_access
+      - name: SESSION_DURATION_MINUTES
+        synonyms:
+          - duration
+          - session length
+          - time spent
+        description: Duration of session in minutes
+        expr: session_duration_minutes
+        data_type: "NUMBER(38,0)"
+        access_modifier: public_access
+    metrics:
+      - name: ACTIVE_USERS
+        synonyms:
+          - users active
+          - engaged users
+          - dau
+          - mau
+        description: Count of distinct active users
+        expr: COUNT(DISTINCT signup_id)
+        access_modifier: public_access
+      - name: AVG_ACTIONS_PER_SESSION
+        synonyms:
+          - actions per session
+        description: Average actions per session
+        expr: "ROUND(SUM(actions_count) * 1.0 / NULLIF(COUNT(activity_id), 0), 1)"
+        access_modifier: public_access
+      - name: AVG_SESSION_DURATION
+        synonyms:
+          - average duration
+          - session length
+          - avg time
+        description: Average session duration in minutes
+        expr: "ROUND(AVG(session_duration_minutes), 0)"
+        access_modifier: public_access
+      - name: AVG_SESSION_DURATION_MINUTES
+        description: "Calculates the average session duration in minutes across activity\
+          \ records. Use when questions ask about 'average session length', 'average\
+          \ time spent', 'typical session duration', 'avg session minutes', or 'how\
+          \ long do users spend per session'. Helps evaluate user engagement depth\
+          \ by feature, cohort, or time period, and supports product experience and\
+          \ retention analysis."
+        expr: AVG(session_duration_minutes)
+        access_modifier: public_access
+      - name: ROLLING_30_DAY_SESSIONS
+        synonyms:
+          - monthly rolling sessions
+          - 30 day sessions
+        description: Rolling 30-day total sessions for monthly activity trend
+        expr: SUM(user_activity.total_sessions) OVER (PARTITION BY EXCLUDING user_activity.activity_date
+          ORDER BY user_activity.activity_date RANGE BETWEEN INTERVAL '29 days' PRECEDING
+          AND CURRENT ROW)
+        access_modifier: public_access
+      - name: ROLLING_7_DAY_ACTIVE_USERS
+        synonyms:
+          - weekly average dau
+          - 7 day active users
+        description: Rolling 7-day average of active users (DAU smoothed)
+        expr: "AVG(user_activity.active_users) OVER (PARTITION BY EXCLUDING user_activity.activity_date,\
+          \ user_activity.activity_month ORDER BY user_activity.activity_date RANGE\
+          \ BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW)"
+        access_modifier: public_access
+      - name: ROLLING_7_DAY_AVG_DURATION
+        synonyms:
+          - weekly avg duration
+          - 7 day duration
+        description: Rolling 7-day average session duration
+        expr: "AVG(user_activity.avg_session_duration) OVER (PARTITION BY EXCLUDING\
+          \ user_activity.activity_date, user_activity.activity_month ORDER BY user_activity.activity_date\
+          \ RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW)"
+        access_modifier: public_access
+      - name: SESSIONS_PER_USER
+        synonyms:
+          - frequency
+          - engagement frequency
+        description: Average sessions per user
+        expr: "ROUND(COUNT(activity_id) * 1.0 / NULLIF(COUNT(DISTINCT signup_id),\
+          \ 0), 1)"
+        access_modifier: public_access
+      - name: TOTAL_ACTIONS
+        description: Total actions performed
+        expr: SUM(actions_count)
+        access_modifier: public_access
+      - name: TOTAL_SESSIONS
+        synonyms:
+          - sessions
+          - activity count
+          - events
+        description: Total number of activity sessions
+        expr: COUNT(activity_id)
+        access_modifier: public_access
+      - name: TOTAL_SESSION_DURATION
+        synonyms:
+          - total time
+          - engagement time
+        description: Total time spent in sessions (minutes)
+        expr: SUM(session_duration_minutes)
+        access_modifier: public_access
+      - name: USERS_VS_7_DAYS_AGO
+        synonyms:
+          - previous week users
+          - wow users
+        description: Active user count from 7 days ago for week-over-week comparison
+        expr: "LAG(user_activity.active_users, 7) OVER (PARTITION BY EXCLUDING user_activity.activity_date,\
+          \ user_activity.activity_month ORDER BY user_activity.activity_date)"
+        access_modifier: public_access
+relationships:
+  - name: TOUCHPOINTS_TO_SIGNUPS
+    left_table: TOUCHPOINTS
+    right_table: SIGNUPS
+    join_type: left_outer
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: USER_EMAIL
+        right_column: USER_EMAIL
+  - name: ACTIVITY_TO_SIGNUPS
+    left_table: USER_ACTIVITY
+    right_table: SIGNUPS
+    join_type: left_outer
+    relationship_type: many_to_one
+    relationship_columns:
+      - left_column: SIGNUP_ID
+        right_column: SIGNUP_ID
+verified_queries:
+  - name: SIGNUPS_BY_CHANNEL
+    question: How many signups by channel?
+    sql: "SELECT \n  signup_channel,\n  COUNT(*) AS signups,\n  SUM(CASE WHEN converted_to_paid\
+      \ THEN 1 ELSE 0 END) AS conversions,\n  ROUND(SUM(CASE WHEN converted_to_paid\
+      \ THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS conversion_rate\nFROM PM_AGENTS_DEMO.APP.SIGNUPS\n\
+      GROUP BY signup_channel\nORDER BY signups DESC"
+    verified_by: growth_analytics_team
+  - name: MONTHLY_SIGNUP_TREND
+    question: What is the monthly signup trend?
+    sql: "SELECT \n  DATE_TRUNC('month', signup_date) AS month,\n  COUNT(*) AS signups,\n\
+      \  SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS conversions,\n  ROUND(SUM(mrr_amount),\
+      \ 2) AS revenue\nFROM PM_AGENTS_DEMO.APP.SIGNUPS\nGROUP BY\
+      \ DATE_TRUNC('month', signup_date)\nORDER BY month DESC"
+    verified_by: growth_analytics_team
+    use_as_onboarding_question: true
+  - name: CONVERSION_RATE_BY_CHANNEL
+    question: What is the conversion rate by channel?
+    sql: "SELECT \n  signup_channel,\n  COUNT(*) AS signups,\n  SUM(CASE WHEN converted_to_paid\
+      \ THEN 1 ELSE 0 END) AS conversions,\n  ROUND(SUM(CASE WHEN converted_to_paid\
+      \ THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS conversion_rate\n\
+      FROM PM_AGENTS_DEMO.APP.SIGNUPS\nGROUP BY signup_channel\n\
+      ORDER BY conversion_rate DESC"
+    verified_by: growth_analytics_team
+  - name: REVENUE_BY_PLAN_TYPE
+    question: What is the revenue by plan type?
+    sql: "SELECT \n  plan_type,\n  COUNT(*) AS users,\n  ROUND(SUM(mrr_amount), 2)\
+      \ AS total_revenue,\n  ROUND(AVG(mrr_amount), 2) AS avg_revenue\nFROM PM_AGENTS_DEMO.APP.SIGNUPS\n\
+      WHERE converted_to_paid = TRUE\nGROUP BY plan_type\nORDER BY total_revenue DESC"
+    verified_by: growth_analytics_team
+  - name: TOUCHPOINTS_BY_CHANNEL
+    question: How many touchpoints by channel?
+    sql: "SELECT \n  channel,\n  COUNT(*) AS touchpoints,\n  COUNT(DISTINCT user_email)\
+      \ AS unique_users,\n  ROUND(SUM(ad_spend), 2) AS total_spend,\n  ROUND(SUM(ad_spend)\
+      \ / NULLIF(SUM(clicks), 0), 2) AS cost_per_click\nFROM PM_AGENTS_DEMO.APP.TOUCHPOINTS\n\
+      GROUP BY channel\nORDER BY touchpoints DESC"
+    verified_by: marketing_analytics_team
+  - name: USER_ACTIVITY_BY_FEATURE
+    question: What features are most used?
+    sql: "SELECT \n  feature_used,\n  COUNT(*) AS usage_count,\n  COUNT(DISTINCT signup_id)\
+      \ AS unique_users,\n  ROUND(AVG(session_duration_minutes), 1) AS avg_session_minutes\n\
+      FROM PM_AGENTS_DEMO.APP.USER_ACTIVITY\nGROUP BY feature_used\n\
+      ORDER BY usage_count DESC"
+    verified_by: product_analytics_team
+    use_as_onboarding_question: true
+  - name: RETENTION_BY_COHORT
+    question: What is the retention by signup cohort?
+    sql: "WITH cohort_sizes AS (\n  SELECT \n    DATE_TRUNC('month', signup_date)\
+      \ AS cohort_month,\n    COUNT(DISTINCT signup_id) AS cohort_size\n  FROM PM_AGENTS_DEMO.APP.SIGNUPS\n\
+      \  GROUP BY DATE_TRUNC('month', signup_date)\n),\nactivity_by_cohort AS (\n\
+      \  SELECT \n    DATE_TRUNC('month', s.signup_date) AS cohort_month,\n    COUNT(DISTINCT\
+      \ a.signup_id) AS active_users\n  FROM PM_AGENTS_DEMO.APP.SIGNUPS\
+      \ s\n  JOIN PM_AGENTS_DEMO.APP.USER_ACTIVITY a ON s.signup_id\
+      \ = a.signup_id\n  GROUP BY DATE_TRUNC('month', s.signup_date)\n)\nSELECT \n\
+      \  c.cohort_month,\n  c.cohort_size,\n  COALESCE(a.active_users, 0) AS active_users,\n\
+      \  ROUND(COALESCE(a.active_users, 0) * 100.0 / c.cohort_size, 1) AS retention_rate\n\
+      FROM cohort_sizes c\nLEFT JOIN activity_by_cohort a ON c.cohort_month = a.cohort_month\n\
+      ORDER BY c.cohort_month DESC"
+    verified_by: growth_analytics_team
+  - name: MARKETING_EFFICIENCY
+    question: What is our marketing efficiency by channel?
+    sql: "WITH channel_metrics AS (\n  SELECT \n    t.channel,\n    COUNT(DISTINCT\
+      \ t.user_email) AS users_touched,\n    SUM(t.ad_spend) AS total_spend,\n   \
+      \ SUM(t.clicks) AS total_clicks,\n    SUM(t.impressions) AS total_impressions\n\
+      \  FROM PM_AGENTS_DEMO.APP.TOUCHPOINTS t\n  GROUP BY t.channel\n\
+      ),\nconversions AS (\n  SELECT \n    t.channel,\n    COUNT(DISTINCT s.user_email)\
+      \ AS conversions,\n    SUM(s.mrr_amount) AS revenue\n  FROM PM_AGENTS_DEMO.APP.TOUCHPOINTS\
+      \ t\n  JOIN PM_AGENTS_DEMO.APP.SIGNUPS s ON t.user_email =\
+      \ s.user_email\n  WHERE s.converted_to_paid = TRUE\n  GROUP BY t.channel\n)\n\
+      SELECT \n  cm.channel,\n  cm.users_touched,\n  COALESCE(c.conversions, 0) AS\
+      \ conversions,\n  ROUND(cm.total_spend, 2) AS total_spend,\n  ROUND(cm.total_spend\
+      \ / NULLIF(c.conversions, 0), 2) AS cost_per_conversion,\n  ROUND(c.revenue\
+      \ / NULLIF(cm.total_spend, 0), 2) AS roas\nFROM channel_metrics cm\nLEFT JOIN\
+      \ conversions c ON cm.channel = c.channel\nORDER BY cm.total_spend DESC"
+    verified_by: marketing_analytics_team
+    use_as_onboarding_question: true
+  - name: '"How have monthly signups, conversions, and conversion rate trended over
+      time?"'
+    question: "How have monthly signups, conversions, and conversion rate trended\
+      \ over time?"
+    sql: "SELECT DATE_TRUNC('MONTH', signup_date) AS signup_month, COUNT(*) AS total_signups,\
+      \ SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS total_conversions, ROUND(SUM(CASE\
+      \ WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1)\
+      \ AS conversion_rate FROM PM_AGENTS_DEMO.APP.SIGNUPS GROUP\
+      \ BY DATE_TRUNC('MONTH', signup_date) ORDER BY signup_month DESC"
+    verified_at: 1785347299
+    verified_by: growth_analytics_team
+  - name: Calculate monthly minimum average revenue by device type using direct SQL from SIGNUPS table
+    sql: "WITH monthly_avg_revenue AS (SELECT DATE_TRUNC('MONTH', signup_date) AS signup_month, device_type, AVG(mrr_amount) AS avg_revenue, COUNT(*) AS signup_count, MIN(signup_date) AS min_signup_date, MAX(signup_date) AS max_signup_date FROM signups WHERE converted_to_paid = TRUE AND signup_date <= CURRENT_TIMESTAMP() GROUP BY DATE_TRUNC('MONTH', signup_date), device_type), monthly_min_avg_revenue AS (SELECT signup_month, device_type, avg_revenue, signup_count, min_signup_date, max_signup_date, MIN(avg_revenue) OVER (PARTITION BY signup_month) AS monthly_min_avg_revenue FROM monthly_avg_revenue) SELECT signup_month, device_type, ROUND(avg_revenue, 2) AS avg_revenue, ROUND(monthly_min_avg_revenue, 2) AS monthly_min_avg_revenue, signup_count, min_signup_date, max_signup_date FROM monthly_min_avg_revenue ORDER BY signup_month DESC NULLS LAST, device_type /* Generated by Cortex Analyst (request_id: 3244d41b-b33a-4094-840b-491839dde218) */;"
+    question: Calculate monthly minimum average revenue by device type using direct SQL from SIGNUPS table
+    verified_at: 1785445765
+    verified_by: ABHINAV
+    use_as_onboarding_question: false
+module_custom_instructions:
+  sql_generation: "BUSINESS CONTEXT:\nThis semantic view covers growth analytics for\
+    \ a SaaS product including:\n- User signups and conversion tracking\n- Cohort-based\
+    \ retention analysis\n- Multi-touch marketing attribution\n\nATTRIBUTION MODELS:\n\
+    - First touch: Assign 100% credit to touchpoint_position = 'first'\n- Last touch:\
+    \ Assign 100% credit to is_converting_touchpoint = TRUE\n- Linear: Divide revenue\
+    \ equally among all touchpoints for a user\n\nCALCULATION RULES:\n- Revenue attribution:\
+    \ Only include users where converted_to_paid = TRUE\n- Round currency to 2 decimal\
+    \ places, percentages to 1 decimal place\n- Use PRIVATE metrics as intermediate\
+    \ calculations\n\nSQL PATTERNS:\n- Attribution queries: JOIN touchpoints to signups\
+    \ ON user_email\n- Retention queries: Use DATEDIFF('week', signup_date, activity_date)\n\
+    - Cohort queries: GROUP BY DATE_TRUNC('month', signup_date)"
+  question_categorization: "REJECT these question types:\n- Questions about competitor\
+    \ companies or competitive analysis\n- Questions requesting individual user PII\
+    \ (emails, names, addresses)\n- Questions about employee performance or HR data\n\
+    - Questions about financial projections or forecasts\n\nCLARIFY if ambiguous:\n\
+    - \"best channel\" -> Ask: \"Best for signup volume, conversion rate, or revenue?\"\
+    \n- \"performance\" -> Ask: \"Which metric: signups, conversions, retention, or\
+    \ revenue?\"\n- \"recent\" without date -> Ask: \"What time period? Last 7 days,\
+    \ 30 days, or 90 days?\"\n\nALLOW all other growth/marketing analytics questions."
+metrics:
+  - name: COST_PER_ACQUISITION
+    synonyms:
+      - cpa
+      - acquisition cost
+    description: Average cost to acquire a signup (total ad spend / total signups)
+    expr: "ROUND(touchpoints.total_ad_spend / NULLIF(signups.total_signups, 0), 2)"
+  - name: COST_PER_CONVERSION
+    synonyms:
+      - cost per paying customer
+      - conversion cost
+    description: Average cost per paid conversion
+    expr: "ROUND(touchpoints.total_ad_spend / NULLIF(signups.total_conversions, 0),\
+      \ 2)"
+  - name: ENGAGEMENT_SCORE
+    synonyms:
+      - user engagement
+    description: Combined engagement metric (sessions * avg duration / users)
+    expr: "ROUND((user_activity.total_sessions * user_activity.avg_session_duration)\
+      \ / NULLIF(user_activity.active_users, 0), 1)"
+  - name: RETURN_ON_AD_SPEND
+    synonyms:
+      - roas
+      - ad roi
+    description: Revenue generated per dollar of ad spend (ROAS)
+    expr: "ROUND(signups.total_revenue / NULLIF(touchpoints.total_ad_spend, 0), 2)"

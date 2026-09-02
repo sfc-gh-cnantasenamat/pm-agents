@@ -1,0 +1,11 @@
+evaluation:
+  agent: PM_AGENTS_DEMO.APP.GROWTH_AGENT
+  agent_version: staging
+  dataset_fqn: PM_AGENTS_DEMO.APP.GROWTH_AGENT_EVAL
+metrics:
+  - name: answer_correctness
+    version: v3_0
+  - name: logical_consistency
+    version: v3_0
+  - name: tool_selection_accuracy
+    version: v3_0

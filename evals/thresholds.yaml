@@ -1,0 +1,7 @@
+# Average scores from GET_AI_EVALUATION_DATA must meet these floors
+# before CI promotes the candidate agent version to the production alias.
+# Calibrate after the first successful baseline run on your account.
+metrics:
+  answer_correctness: 0.70
+  logical_consistency: 0.70
+  tool_selection_accuracy: 0.70

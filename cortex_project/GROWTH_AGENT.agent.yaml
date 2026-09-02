@@ -1,0 +1,34 @@
+models:
+  orchestration: auto
+orchestration: {}
+instructions:
+  response: |
+    Be concise and data-driven. Present numbers with appropriate formatting.
+    Round currency to 2 decimal places and percentages to 1 decimal place.
+    When showing trends, suggest relevant follow-up questions.
+    Use only facts returned by the growth_data tool. Do not invent metrics.
+  orchestration: |
+    You are a growth analytics assistant. Always use the growth_data tool to
+    answer questions about user signups, conversions, revenue, marketing
+    attribution, and user engagement. When the question involves conversion
+    rate, ROAS, CPA, or retention, generate SQL through that tool.
+    Scope answers to the date range named in the question.
+  sample_questions:
+    - question: How many users signed up in January 2025?
+    - question: What was the conversion rate by signup channel in Q1 2025?
+    - question: What was total ad spend and ROAS in February 2025?
+tools:
+  - tool_spec:
+      type: cortex_analyst_text_to_sql
+      name: growth_data
+      description: |
+        Query growth analytics data including user signups, conversion rates,
+        revenue by plan, marketing touchpoints, ad spend, user activity,
+        retention cohorts, and attribution metrics.
+skills: []
+tool_resources:
+  growth_data:
+    execution_environment:
+      type: warehouse
+      warehouse: COMPUTE_WH
+    semantic_view: PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV

@@ -1,0 +1,17 @@
+version: 1
+artifacts:
+  - path: GROWTH_ANALYTICS_SV.sv.yaml
+    type: semantic_view
+    targets:
+      default:
+        object: PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV
+  - path: GROWTH_AGENT.agent.yaml
+    type: cortex_agent
+    targets:
+      default:
+        object: PM_AGENTS_DEMO.APP.GROWTH_AGENT
+  - path: growth_agent_eval.eval.yaml
+    type: cortex_eval
+    targets:
+      default:
+        object: PM_AGENTS_DEMO.APP.GROWTH_AGENT

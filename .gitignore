@@ -1,0 +1,8 @@
+# Ignore local Snowflake CLI leftovers and key material
+.snowflake/*.p8
+*.p8
+*.pem
+.DS_Store
+__pycache__/
+*.pyc
+/tmp/

@@ -1,0 +1,7 @@
+[connections.default]
+account = "override-via-env"
+user = "override-via-env"
+authenticator = "SNOWFLAKE_JWT"
+private_key_file = "/tmp/rsa_key.p8"
+warehouse = "COMPUTE_WH"
+role = "PM_AGENTS_CI"
