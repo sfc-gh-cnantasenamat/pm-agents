@@ -6,12 +6,13 @@ On every push to `main`:
 
 1. Validate the Cortex project YAML.
 2. Deploy the semantic view and commit a **new named agent version**.
-3. Run native Cortex Agent evaluations against that candidate (`LAST`).
-4. Promote the version (`DEFAULT_VERSION = LAST`, plus a `production` alias when the account allows it) **only if** average scores meet `evals/thresholds.yaml`.
+3. Run **Cortex Analyst evaluations** (`sql_correctness`) against the semantic view's verified queries.
+4. Run **Cortex Agent evaluations** against the candidate agent version (`LAST`).
+5. Promote the version (`DEFAULT_VERSION = LAST`, plus a `production` alias when the account allows it) **only if** both gates meet `evals/thresholds.yaml`.
 
-If evals fail, the workflow is red and production traffic stays on the previous default version.
+If either eval fails, the workflow is red and production traffic stays on the previous default version.
 
-This is **not** a replacement for [Getting Started with Cortex Agent Evaluations](https://www.snowflake.com/en/developers/guides/getting-started-with-cortex-agent-evaluations/). That guide teaches evals. This repo shows how evals **gate a versioned deploy**.
+This is **not** a replacement for [Getting Started with Cortex Agent Evaluations](https://www.snowflake.com/en/developers/guides/getting-started-with-cortex-agent-evaluations/) or [Cortex Analyst evaluations](https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst-evaluations). Those guides teach the products. This repo shows how they **gate a versioned deploy**.
 
 ## Credits
 
@@ -29,9 +30,8 @@ GitHub does not allow a private-to-public fork, so this is a new public reposito
 
 Metrics in CI:
 
-- `answer_correctness` (v3_0)
-- `logical_consistency` (v3_0)
-- `tool_selection_accuracy` (v3_0)
+- Semantic view (Cortex Analyst): `sql_correctness` (v3_0) against eight verified queries
+- Agent: `answer_correctness`, `logical_consistency`, `tool_selection_accuracy` (v3_0)
 
 Default floors are 0.70. Recalibrate after your first successful baseline.
 
@@ -86,8 +86,9 @@ Git is the contract. Edit the same files:
 |---|---|
 | `cortex_project/GROWTH_ANALYTICS_SV.sv.yaml` | Semantic view |
 | `cortex_project/GROWTH_AGENT.agent.yaml` | Agent spec |
-| `cortex_project/growth_agent_eval.eval.yaml` | Eval pointer (CI builds the resolved config) |
-| `evals/thresholds.yaml` | Promotion floors |
+| `cortex_project/growth_analytics_sv.eval.yaml` | Analyst eval: `sql_correctness` vs VQRs |
+| `cortex_project/growth_agent_eval.eval.yaml` | Agent eval pointer (CI builds the resolved config) |
+| `evals/thresholds.yaml` | Promotion floors (SV then agent) |
 
 ### Path A — Git-backed Workspace
 
@@ -103,17 +104,18 @@ Open a PR against `main`. The `validate` job lints the manifest. Merge to `main`
 
 ## 5. Watch the Action
 
-`Deploy and evaluate Cortex project` runs four jobs on `main`:
+`Deploy and evaluate Cortex project` runs five jobs on `main`:
 
 ```
-validate → deploy_candidate → eval → promote
+validate → deploy_candidate → eval_sv → eval → promote
 ```
 
 - `deploy_candidate` replaces the semantic view, then either `CREATE AGENT` (first time) or `MODIFY LIVE VERSION` + `COMMIT` (later).
-- `eval` starts `EXECUTE_AI_EVALUATION` against `LAST`, polls until `COMPLETED`, and fails the job if any metric in `evals/thresholds.yaml` is below the floor.
-- `promote` runs only after evals pass. It sets `DEFAULT_VERSION = LAST` and tries `ALIAS = production`.
+- `eval_sv` runs Cortex Analyst evaluations (`sql_correctness`) against the deployed SV's verified queries. This is the SV quality gate. Agent evals do not run if it fails.
+- `eval` runs Cortex Agent evaluations against `LAST` (answer correctness, logical consistency, tool selection). This is after the SV gate and before promote.
+- `promote` runs only after **both** evals pass. It sets `DEFAULT_VERSION = LAST` and tries `ALIAS = production`.
 
-On eval failure, `promote` is skipped. The previous default version stays live.
+On either eval failure, `promote` is skipped. The previous default version stays live.
 
 Inspect versions after a successful run:
 
@@ -168,12 +170,13 @@ After the first agent exists, confirm the role can `MONITOR` / `USAGE` it. Setup
 ## Repo layout
 
 ```
-.github/workflows/deploy.yml   validate → candidate → eval → promote
+.github/workflows/deploy.yml   validate → candidate → eval_sv → eval → promote
 .snowflake/config.toml         Snowflake CLI connection for Actions
-cortex_project/                SV, agent, eval YAML + manifest
-evals/thresholds.yaml          promotion floors
+cortex_project/                SV, agent, Analyst + agent eval YAML + manifest
+evals/thresholds.yaml          SV then agent promotion floors
 scripts/deploy.sh              versioned deploy
-scripts/eval.sh                start, poll, gate scores
+scripts/eval_sv.sh             Cortex Analyst sql_correctness gate
+scripts/eval.sh                Cortex Agent eval gate
 scripts/promote.sh             DEFAULT_VERSION / production alias
 scripts/validate.py            PR lint
 sql/setup.sql                  demo objects + seed data

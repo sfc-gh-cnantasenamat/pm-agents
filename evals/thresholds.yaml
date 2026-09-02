@@ -1,7 +1,9 @@
-# Average scores from GET_AI_EVALUATION_DATA must meet these floors
-# before CI promotes the candidate agent version to the production alias.
-# Calibrate after the first successful baseline run on your account.
-metrics:
+# Promotion floors. Calibrate after the first successful baseline.
+# semantic_view is gated by scripts/eval_sv.sh (Cortex Analyst / sql_correctness).
+# agent is gated by scripts/eval.sh (Cortex Agent evaluations).
+semantic_view:
+  sql_correctness: 0.70
+agent:
   answer_correctness: 0.70
   logical_consistency: 0.70
   tool_selection_accuracy: 0.70

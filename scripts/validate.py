@@ -9,13 +9,14 @@ import sys
 import yaml
 
 MANIFEST = pathlib.Path("cortex_project/cortex-project.yaml")
-VALID_TYPES = {"semantic_view", "cortex_agent", "cortex_eval"}
+VALID_TYPES = {"semantic_view", "cortex_agent", "cortex_eval", "cortex_analyst_eval"}
 BUILTIN_METRICS = {
     "answer_correctness",
     "logical_consistency",
     "tool_selection_accuracy",
     "tool_execution_accuracy",
 }
+ANALYST_METRICS = {"sql_correctness"}
 
 
 def main() -> int:
@@ -61,6 +62,36 @@ def main() -> int:
                 warnings.append(f"{path}: agent spec is empty")
             elif "tools" not in spec:
                 warnings.append(f"{path}: agent spec has no tools")
+        elif typ == "cortex_analyst_eval":
+            if not isinstance(spec, dict):
+                errors.append(f"{path}: eval YAML must be a mapping")
+                continue
+            evaluation = spec.get("evaluation") or {}
+            params = evaluation.get("analyst_params") or {}
+            if not params.get("analyst_name"):
+                errors.append(f"{path}: evaluation.analyst_params.analyst_name is required")
+            if (params.get("analyst_type") or "").upper() not in ("", "SEMANTIC VIEW"):
+                errors.append(f"{path}: analyst_type must be 'SEMANTIC VIEW'")
+            source = evaluation.get("source_metadata") or {}
+            if source.get("type") != "verified_queries":
+                errors.append(f"{path}: source_metadata.type must be verified_queries")
+            metrics = spec.get("metrics") or []
+            if not metrics:
+                errors.append(f"{path}: metrics list is empty")
+            for metric in metrics:
+                if isinstance(metric, str):
+                    name = metric
+                    version = None
+                elif isinstance(metric, dict):
+                    name = metric.get("name")
+                    version = metric.get("version")
+                else:
+                    errors.append(f"{path}: metric entries must be strings or objects")
+                    continue
+                if name not in ANALYST_METRICS:
+                    errors.append(f"{path}: Analyst eval metric must be sql_correctness, got '{name}'")
+                if isinstance(metric, dict) and name in ANALYST_METRICS and not version:
+                    errors.append(f"{path}: sql_correctness must set version (use v3_0)")
         elif typ == "cortex_eval":
             if not isinstance(spec, dict):
                 errors.append(f"{path}: eval YAML must be a mapping")

@@ -1,0 +1,18 @@
+evaluation:
+  analyst_params:
+    analyst_name: PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV
+    analyst_type: SEMANTIC VIEW
+  source_metadata:
+    type: verified_queries
+    verified_queries:
+      - How many signups by channel?
+      - What is the monthly signup trend?
+      - What is the conversion rate by channel?
+      - What is the revenue by plan type?
+      - How many touchpoints by channel?
+      - What features are most used?
+      - What is the retention by signup cohort?
+      - What is our marketing efficiency by channel?
+metrics:
+  - name: sql_correctness
+    version: v3_0

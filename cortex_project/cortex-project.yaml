@@ -10,6 +10,11 @@ artifacts:
     targets:
       default:
         object: PM_AGENTS_DEMO.APP.GROWTH_AGENT
+  - path: growth_analytics_sv.eval.yaml
+    type: cortex_analyst_eval
+    targets:
+      default:
+        object: PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV
   - path: growth_agent_eval.eval.yaml
     type: cortex_eval
     targets:

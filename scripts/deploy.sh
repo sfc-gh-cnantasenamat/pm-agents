@@ -39,7 +39,7 @@ with open(manifest_path) as fh:
 
 for art in manifest.get("artifacts", []):
     typ = art.get("type")
-    if typ == "cortex_eval":
+    if typ in ("cortex_eval", "cortex_analyst_eval"):
         continue
     path = art.get("path")
     targets = art.get("targets") or {}
@@ -214,4 +214,4 @@ if [[ "${#FAILED[@]}" -ne 0 ]]; then
 fi
 
 echo
-echo "Candidate version is ready. Run scripts/eval.sh next."
+echo "Candidate version is ready. Run scripts/eval_sv.sh then scripts/eval.sh."
