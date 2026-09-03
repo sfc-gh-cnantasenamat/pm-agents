@@ -89,7 +89,7 @@ A change to the semantic view or the agent does not go live until two quality ch
                                                | the shelf   |                      |
                                                | Users keep  |                      v
                                                | yesterday   |               +--------------------------------+
-                                               +-------------+               | END                            |
+                                               +-------------+               |              END               |
                                                                              +--------------------------------+
                                                                              | People chat with the new agent |
                                                                              +--------------------------------+
