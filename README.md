@@ -1,4 +1,4 @@
-# Version and promote Cortex Agents with Git and evals
+# Evaluate and Deploy Semantic Views and Cortex Agents from a Git-backed Workspace
 
 Demonstrate Snowflake agent **versioning** and **CI/CD** using the same YAML in GitHub and in a git-backed Snowsight Workspace.
 
