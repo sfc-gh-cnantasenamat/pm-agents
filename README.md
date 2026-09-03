@@ -20,7 +20,7 @@ A change to the semantic view or the agent does not go live until two quality ch
 
 ```
   +------------------------------------------+
-  | START                                    |
+  |                  START                   |
   +------------------------------------------+
                        |
                        v
@@ -67,7 +67,7 @@ A change to the semantic view or the agent does not go live until two quality ch
                        +------------------+-----------------------+
                                           |
                                  +--------+--------+
-                                 | fail            | pass
+                                 | FAIL            | PASS
                                  v                 v
                           +-------------+   +------------------------------------------+
                           | STOP        |   | 6. Test the agent                        |
@@ -78,7 +78,7 @@ A change to the semantic view or the agent does not go live until two quality ch
                           | yesterday   |   +------------------+-----------------------+
                           | live        |                      |
                           +-------------+             +--------+--------+
-                                                      | fail            | pass
+                                                      | FAIL            | PASS
                                                       v                 v
                                                +-------------+   +------------------------------------------+
                                                | STOP        |   | 7. Promote (make it live)                |
