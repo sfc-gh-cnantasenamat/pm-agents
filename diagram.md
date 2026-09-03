@@ -27,13 +27,14 @@ A change to the semantic view or the agent does not go live until two quality ch
   +------------------------------------------+
   | Checks the manifest, required fields,    |
   | and metric versions                      |
+  +------------------------------------------+
   +------------------+-----------------------+
                      |
             +--------+--------+
             | no              | yes
             v                 v
      +-------------+   +------------------------------------------+
-     | STOP        |   | 4. Deploy to Snowflake                   |
+     |    STOP     |   | 4. Deploy to Snowflake                   |
      +-------------+   +------------------------------------------+
      | Fix YAML    |   | Semantic view: replace in place          |
      | and push    |   | Agent: save a new version on the shelf   |
@@ -48,24 +49,26 @@ A change to the semantic view or the agent does not go live until two quality ch
                        | questions. Compare generated SQL         |
                        | results to the expected SQL.             |
                        | Pass if sql_correctness >= 0.70          |
+                       +------------------------------------------+
                        +------------------+-----------------------+
                                           |
                                  +--------+--------+
                                  | FAIL            | PASS
                                  v                 v
                           +-------------+   +------------------------------------------+
-                          | STOP        |   | 6. Test the agent                        |
+                          |    STOP     |   | 6. Test the agent                        |
                           +-------------+   +------------------------------------------+
                           | Do not run  |   | Ask the new agent the eval questions.    |
                           | agent evals |   | Score answers and which tools it used.   |
                           | Keep        |   | Pass if AC, LC, TSA each >= 0.70         |
-                          | yesterday   |   +------------------+-----------------------+
-                          | live        |                      |
-                          +-------------+             +--------+--------+
+                          | yesterday   |   +------------------------------------------+
+                          | live        |   +------------------+-----------------------+
+                          +-------------+                      |
+                                                      +--------+--------+
                                                       | FAIL            | PASS
                                                       v                 v
                                                +-------------+   +------------------------------------------+
-                                               | STOP        |   | 7. Promote (make it live)                |
+                                               |    STOP     |   | 7. Promote (make it live)                |
                                                +-------------+   +------------------------------------------+
                                                | New agent   |   | DEFAULT_VERSION = the new version        |
                                                | version     |   | production alias = the new version       |
