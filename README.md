@@ -22,8 +22,8 @@ A change to the semantic view or the agent does not go live until two quality ch
   +------------------------------------------+
   | START                                    |
   +------------------------------------------+
-    |
-    v
+                       |
+                       v
   +------------------------------------------+
   | 1. Change the files                      |
   +------------------------------------------+
@@ -31,13 +31,13 @@ A change to the semantic view or the agent does not go live until two quality ch
   | Author in a git-backed Snowsight         |
   | Workspace, or in GitHub / local git      |
   +------------------------------------------+
-    |
-    v
+                       |
+                       v
   +------------------------------------------+
   | 2. Commit and push to main               |
   +------------------------------------------+
-    |
-    v
+                       |
+                       v
   +------------------------------------------+
   | 3. Are the YAML files valid?             |
   +------------------------------------------+
@@ -55,8 +55,8 @@ A change to the semantic view or the agent does not go live until two quality ch
      | and push    |   | Agent: save a new version on the shelf   |
      | again       |   | Users still talk to yesterday            |
      +-------------+   +------------------------------------------+
-                                |
-                                v
+                                            |
+                                            v
                        +------------------------------------------+
                        | 5. Test the semantic view                |
                        +------------------------------------------+
