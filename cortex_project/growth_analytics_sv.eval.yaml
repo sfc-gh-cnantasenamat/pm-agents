@@ -1,6 +1,6 @@
 evaluation:
   analyst_params:
-    analyst_name: PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV
+    analyst_name: DEVREL.CNANTASENAMAT_DEV.GROWTH_ANALYTICS_SV
     analyst_type: SEMANTIC VIEW
   source_metadata:
     type: verified_queries

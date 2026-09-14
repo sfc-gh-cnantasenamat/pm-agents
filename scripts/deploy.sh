@@ -21,7 +21,7 @@ set -uo pipefail
 MANIFEST="cortex_project/cortex-project.yaml"
 PROJECT_DIR="$(dirname "$MANIFEST")"
 DEPLOY_TARGET="${DEPLOY_TARGET:-default}"
-WAREHOUSE="${WAREHOUSE:-COMPUTE_WH}"
+WAREHOUSE="${WAREHOUSE:-SNOWADHOC}"
 DRY_RUN="${DRY_RUN:-false}"
 GIT_SHA="${GIT_SHA:-local}"
 

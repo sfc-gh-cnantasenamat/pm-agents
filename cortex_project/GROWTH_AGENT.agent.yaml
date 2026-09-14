@@ -30,5 +30,5 @@ tool_resources:
   growth_data:
     execution_environment:
       type: warehouse
-      warehouse: COMPUTE_WH
-    semantic_view: PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV
+      warehouse: SNOWADHOC
+    semantic_view: DEVREL.CNANTASENAMAT_DEV.GROWTH_ANALYTICS_SV
