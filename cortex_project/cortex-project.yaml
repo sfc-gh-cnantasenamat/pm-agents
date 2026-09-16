@@ -4,12 +4,12 @@ artifacts:
     type: semantic_view
     targets:
       default:
-        object: DEVREL.CNANTASENAMAT_DEV.GROWTH_ANALYTICS_SV
+        object: PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV
   - path: GROWTH_AGENT.agent.yaml
     type: cortex_agent
     targets:
       default:
-        object: DEVREL.CNANTASENAMAT_DEV.GROWTH_AGENT
+        object: PM_AGENTS_DEMO.APP.GROWTH_AGENT
   - path: growth_analytics_sv.eval.yaml
     type: cortex_analyst_eval
     targets:
@@ -19,4 +19,4 @@ artifacts:
     type: cortex_eval
     targets:
       default:
-        object: DEVREL.CNANTASENAMAT_DEV.GROWTH_AGENT
+        object: PM_AGENTS_DEMO.APP.GROWTH_AGENT

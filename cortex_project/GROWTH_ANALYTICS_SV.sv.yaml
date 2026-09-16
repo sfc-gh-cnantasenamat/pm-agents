@@ -7,8 +7,8 @@ tables:
     description: "User signup events with acquisition channel and conversion data.\
       \ Primary table for signup volume, conversion rates, and revenue analysis."
     base_table:
-      database: DEVREL
-      schema: CNANTASENAMAT_DEV
+      database: PM_AGENTS_DEMO
+      schema: APP
       table: SIGNUPS
     primary_key:
       columns:
@@ -299,8 +299,8 @@ tables:
     description: "Marketing touchpoints before signup for multi-touch attribution\
       \ analysis. Tracks channel interactions, campaigns, and ad spend."
     base_table:
-      database: DEVREL
-      schema: CNANTASENAMAT_DEV
+      database: PM_AGENTS_DEMO
+      schema: APP
       table: TOUCHPOINTS
     primary_key:
       columns:
@@ -488,8 +488,8 @@ tables:
     description: "Post-signup user engagement for retention analysis. Tracks feature\
       \ usage, session duration, and activity patterns."
     base_table:
-      database: DEVREL
-      schema: CNANTASENAMAT_DEV
+      database: PM_AGENTS_DEMO
+      schema: APP
       table: USER_ACTIVITY
     primary_key:
       columns:
@@ -686,14 +686,14 @@ verified_queries:
     question: How many signups by channel?
     sql: "SELECT \n  signup_channel,\n  COUNT(*) AS signups,\n  SUM(CASE WHEN converted_to_paid\
       \ THEN 1 ELSE 0 END) AS conversions,\n  ROUND(SUM(CASE WHEN converted_to_paid\
-      \ THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS conversion_rate\nFROM DEVREL.CNANTASENAMAT_DEV.SIGNUPS\n\
+      \ THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS conversion_rate\nFROM PM_AGENTS_DEMO.APP.SIGNUPS\n\
       GROUP BY signup_channel\nORDER BY signups DESC"
     verified_by: growth_analytics_team
   - name: MONTHLY_SIGNUP_TREND
     question: What is the monthly signup trend?
     sql: "SELECT \n  DATE_TRUNC('month', signup_date) AS month,\n  COUNT(*) AS signups,\n\
       \  SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS conversions,\n  ROUND(SUM(mrr_amount),\
-      \ 2) AS revenue\nFROM DEVREL.CNANTASENAMAT_DEV.SIGNUPS\nGROUP BY\
+      \ 2) AS revenue\nFROM PM_AGENTS_DEMO.APP.SIGNUPS\nGROUP BY\
       \ DATE_TRUNC('month', signup_date)\nORDER BY month DESC"
     verified_by: growth_analytics_team
     use_as_onboarding_question: true
@@ -702,38 +702,38 @@ verified_queries:
     sql: "SELECT \n  signup_channel,\n  COUNT(*) AS signups,\n  SUM(CASE WHEN converted_to_paid\
       \ THEN 1 ELSE 0 END) AS conversions,\n  ROUND(SUM(CASE WHEN converted_to_paid\
       \ THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS conversion_rate\n\
-      FROM DEVREL.CNANTASENAMAT_DEV.SIGNUPS\nGROUP BY signup_channel\n\
+      FROM PM_AGENTS_DEMO.APP.SIGNUPS\nGROUP BY signup_channel\n\
       ORDER BY conversion_rate DESC"
     verified_by: growth_analytics_team
   - name: REVENUE_BY_PLAN_TYPE
     question: What is the revenue by plan type?
     sql: "SELECT \n  plan_type,\n  COUNT(*) AS users,\n  ROUND(SUM(mrr_amount), 2)\
-      \ AS total_revenue,\n  ROUND(AVG(mrr_amount), 2) AS avg_revenue\nFROM DEVREL.CNANTASENAMAT_DEV.SIGNUPS\n\
+      \ AS total_revenue,\n  ROUND(AVG(mrr_amount), 2) AS avg_revenue\nFROM PM_AGENTS_DEMO.APP.SIGNUPS\n\
       WHERE converted_to_paid = TRUE\nGROUP BY plan_type\nORDER BY total_revenue DESC"
     verified_by: growth_analytics_team
   - name: TOUCHPOINTS_BY_CHANNEL
     question: How many touchpoints by channel?
     sql: "SELECT \n  channel,\n  COUNT(*) AS touchpoints,\n  COUNT(DISTINCT user_email)\
       \ AS unique_users,\n  ROUND(SUM(ad_spend), 2) AS total_spend,\n  ROUND(SUM(ad_spend)\
-      \ / NULLIF(SUM(clicks), 0), 2) AS cost_per_click\nFROM DEVREL.CNANTASENAMAT_DEV.TOUCHPOINTS\n\
+      \ / NULLIF(SUM(clicks), 0), 2) AS cost_per_click\nFROM PM_AGENTS_DEMO.APP.TOUCHPOINTS\n\
       GROUP BY channel\nORDER BY touchpoints DESC"
     verified_by: marketing_analytics_team
   - name: USER_ACTIVITY_BY_FEATURE
     question: What features are most used?
     sql: "SELECT \n  feature_used,\n  COUNT(*) AS usage_count,\n  COUNT(DISTINCT signup_id)\
       \ AS unique_users,\n  ROUND(AVG(session_duration_minutes), 1) AS avg_session_minutes\n\
-      FROM DEVREL.CNANTASENAMAT_DEV.USER_ACTIVITY\nGROUP BY feature_used\n\
+      FROM PM_AGENTS_DEMO.APP.USER_ACTIVITY\nGROUP BY feature_used\n\
       ORDER BY usage_count DESC"
     verified_by: product_analytics_team
     use_as_onboarding_question: true
   - name: RETENTION_BY_COHORT
     question: What is the retention by signup cohort?
     sql: "WITH cohort_sizes AS (\n  SELECT \n    DATE_TRUNC('month', signup_date)\
-      \ AS cohort_month,\n    COUNT(DISTINCT signup_id) AS cohort_size\n  FROM DEVREL.CNANTASENAMAT_DEV.SIGNUPS\n\
+      \ AS cohort_month,\n    COUNT(DISTINCT signup_id) AS cohort_size\n  FROM PM_AGENTS_DEMO.APP.SIGNUPS\n\
       \  GROUP BY DATE_TRUNC('month', signup_date)\n),\nactivity_by_cohort AS (\n\
       \  SELECT \n    DATE_TRUNC('month', s.signup_date) AS cohort_month,\n    COUNT(DISTINCT\
-      \ a.signup_id) AS active_users\n  FROM DEVREL.CNANTASENAMAT_DEV.SIGNUPS\
-      \ s\n  JOIN DEVREL.CNANTASENAMAT_DEV.USER_ACTIVITY a ON s.signup_id\
+      \ a.signup_id) AS active_users\n  FROM PM_AGENTS_DEMO.APP.SIGNUPS\
+      \ s\n  JOIN PM_AGENTS_DEMO.APP.USER_ACTIVITY a ON s.signup_id\
       \ = a.signup_id\n  GROUP BY DATE_TRUNC('month', s.signup_date)\n)\nSELECT \n\
       \  c.cohort_month,\n  c.cohort_size,\n  COALESCE(a.active_users, 0) AS active_users,\n\
       \  ROUND(COALESCE(a.active_users, 0) * 100.0 / c.cohort_size, 1) AS retention_rate\n\
@@ -745,10 +745,10 @@ verified_queries:
     sql: "WITH channel_metrics AS (\n  SELECT \n    t.channel,\n    COUNT(DISTINCT\
       \ t.user_email) AS users_touched,\n    SUM(t.ad_spend) AS total_spend,\n   \
       \ SUM(t.clicks) AS total_clicks,\n    SUM(t.impressions) AS total_impressions\n\
-      \  FROM DEVREL.CNANTASENAMAT_DEV.TOUCHPOINTS t\n  GROUP BY t.channel\n\
+      \  FROM PM_AGENTS_DEMO.APP.TOUCHPOINTS t\n  GROUP BY t.channel\n\
       ),\nconversions AS (\n  SELECT \n    t.channel,\n    COUNT(DISTINCT s.user_email)\
-      \ AS conversions,\n    SUM(s.mrr_amount) AS revenue\n  FROM DEVREL.CNANTASENAMAT_DEV.TOUCHPOINTS\
-      \ t\n  JOIN DEVREL.CNANTASENAMAT_DEV.SIGNUPS s ON t.user_email =\
+      \ AS conversions,\n    SUM(s.mrr_amount) AS revenue\n  FROM PM_AGENTS_DEMO.APP.TOUCHPOINTS\
+      \ t\n  JOIN PM_AGENTS_DEMO.APP.SIGNUPS s ON t.user_email =\
       \ s.user_email\n  WHERE s.converted_to_paid = TRUE\n  GROUP BY t.channel\n)\n\
       SELECT \n  cm.channel,\n  cm.users_touched,\n  COALESCE(c.conversions, 0) AS\
       \ conversions,\n  ROUND(cm.total_spend, 2) AS total_spend,\n  ROUND(cm.total_spend\
@@ -764,7 +764,7 @@ verified_queries:
     sql: "SELECT DATE_TRUNC('MONTH', signup_date) AS signup_month, COUNT(*) AS total_signups,\
       \ SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS total_conversions, ROUND(SUM(CASE\
       \ WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1)\
-      \ AS conversion_rate FROM DEVREL.CNANTASENAMAT_DEV.SIGNUPS GROUP\
+      \ AS conversion_rate FROM PM_AGENTS_DEMO.APP.SIGNUPS GROUP\
       \ BY DATE_TRUNC('MONTH', signup_date) ORDER BY signup_month DESC"
     verified_at: 1785347299
     verified_by: growth_analytics_team
