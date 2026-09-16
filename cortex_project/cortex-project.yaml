@@ -1,7 +1,7 @@
 version: 1
 artifacts:
-  - path: GROWTH_ANALYTICS_SV.sv.yaml
-    type: semantic_view
+  - path: GROWTH_ANALYTICS_SV.osi.yaml
+    type: osi_semantic_view
     targets:
       default:
         object: PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV

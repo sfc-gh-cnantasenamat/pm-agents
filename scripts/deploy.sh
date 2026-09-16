@@ -137,6 +137,33 @@ while IFS=$'\t' read -r path typ obj; do
         FAILED+=("$path -> $obj")
       fi
       ;;
+    osi_semantic_view)
+      db_schema="${obj%.*}"
+      stage="@${db_schema}.EVAL_CONFIG_STAGE"
+      abs_file="$(realpath "$file")"
+      stage_path="${stage}/${path}"
+
+      echo "    Staging $path to $stage"
+      if [[ "$DRY_RUN" == "true" ]]; then
+        echo "    (DRY_RUN) PUT file://${abs_file} ${stage} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
+      else
+        if ! snow sql -q "PUT file://${abs_file} ${stage} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;" --warehouse "$WAREHOUSE"; then
+          echo "    FAILED to stage OSI file"
+          FAILED+=("$path -> $obj (PUT failed)")
+          continue
+        fi
+      fi
+
+      sva_payload="{\"tool\":\"osi_write_model\",\"parameters\":{\"file_path\":\"${stage_path}\",\"target_db_schema\":\"${db_schema}\",\"warehouse\":\"${WAREHOUSE}\"}}"
+      sql="SELECT SYSTEM\$CORTEX_ANALYST_SVA_TOOL(\$\$${sva_payload}\$\$);"
+      if run_sql "$sql"; then
+        echo "    OK"
+        SUCCEEDED+=("$path -> $obj")
+      else
+        echo "    FAILED"
+        FAILED+=("$path -> $obj")
+      fi
+      ;;
     cortex_agent)
       db_schema="${obj%.*}"
       if agent_exists "$obj"; then

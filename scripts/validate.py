@@ -9,7 +9,7 @@ import sys
 import yaml
 
 MANIFEST = pathlib.Path("cortex_project/cortex-project.yaml")
-VALID_TYPES = {"semantic_view", "cortex_agent", "cortex_eval", "cortex_analyst_eval"}
+VALID_TYPES = {"semantic_view", "osi_semantic_view", "cortex_agent", "cortex_eval", "cortex_analyst_eval"}
 BUILTIN_METRICS = {
     "answer_correctness",
     "logical_consistency",
@@ -54,9 +54,14 @@ def main() -> int:
             errors.append(f"{path}: invalid YAML: {exc}")
             continue
 
-        if typ == "semantic_view":
+        if typ in ("semantic_view", "osi_semantic_view"):
             if not isinstance(spec, dict) or not spec.get("name"):
-                errors.append(f"{path}: semantic_view YAML must have a top-level 'name:'")
+                errors.append(f"{path}: {typ} YAML must have a top-level 'name:'")
+            if typ == "osi_semantic_view":
+                if not spec.get("version"):
+                    errors.append(f"{path}: osi_semantic_view must have a top-level 'version:'")
+                if not spec.get("datasets"):
+                    errors.append(f"{path}: osi_semantic_view must have at least one dataset")
         elif typ == "cortex_agent":
             if not isinstance(spec, dict) or not spec:
                 warnings.append(f"{path}: agent spec is empty")

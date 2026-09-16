@@ -1,0 +1,891 @@
+version: 0.2.0.dev0
+name: GROWTH_ANALYTICS_SV
+description: >-
+  Growth analytics for user acquisition, retention, and attribution. Supports
+  BI dashboards and conversational analytics. Covers signups, marketing
+  touchpoints, and post-signup user engagement.
+ai_context:
+  instructions: >-
+    BUSINESS CONTEXT: This model covers growth analytics for a SaaS product
+    including user signups and conversion tracking, cohort-based retention
+    analysis, and multi-touch marketing attribution.
+    ATTRIBUTION MODELS: First touch assigns 100% credit to touchpoint_position
+    = first. Last touch assigns 100% credit to is_converting_touchpoint = TRUE.
+    Linear divides revenue equally among all touchpoints for a user.
+    CALCULATION RULES: Revenue attribution only includes users where
+    converted_to_paid = TRUE. Round currency to 2 decimal places, percentages
+    to 1 decimal place. REJECT questions about competitors, individual user PII,
+    employee performance, or financial projections. CLARIFY if ambiguous: best
+    channel means signup volume, conversion rate, or revenue; performance means
+    signups, conversions, retention, or revenue; recent without a date means
+    last 7, 30, or 90 days.
+
+datasets:
+  - name: SIGNUPS
+    source: PM_AGENTS_DEMO.APP.SIGNUPS
+    primary_key: [SIGNUP_ID]
+    unique_keys:
+      - [USER_EMAIL]
+    description: >-
+      User signup events with acquisition channel and conversion data. Primary
+      table for signup volume, conversion rates, and revenue analysis.
+    fields:
+      - name: SIGNUP_ID
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: signup_id
+        datatype: String
+        description: Unique identifier for each signup event
+
+      - name: USER_EMAIL
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: user_email
+        datatype: String
+        description: User email address — used for joining across tables
+
+      - name: SIGNUP_CHANNEL
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: signup_channel
+        datatype: String
+        description: Primary acquisition channel where the user signed up
+        ai_context:
+          synonyms: [channel, acquisition channel, source, marketing channel]
+          examples:
+            - organic_search
+            - paid_search
+            - social_media
+            - email_marketing
+            - referral
+            - direct
+
+      - name: COUNTRY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: country
+        datatype: String
+        description: User's country at time of signup
+        ai_context:
+          synonyms: [nation, location]
+
+      - name: DEVICE_TYPE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: device_type
+        datatype: String
+        description: Device type used for signup
+        ai_context:
+          synonyms: [device, platform]
+          examples: [desktop, mobile, tablet]
+
+      - name: PLAN_TYPE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: plan_type
+        datatype: String
+        description: Subscription plan type selected at signup
+        ai_context:
+          synonyms: [plan, subscription type, tier]
+          examples: [free, starter, professional, enterprise]
+
+      - name: REFERRAL_SOURCE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: referral_source
+        datatype: String
+        description: Referral source if user came via referral
+
+      - name: CONVERTED_TO_PAID
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: converted_to_paid
+        datatype: Boolean
+        description: Whether user converted to a paid plan
+        ai_context:
+          synonyms: [converted, is paid]
+
+      - name: MRR_AMOUNT
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: mrr_amount
+        datatype: Decimal
+        description: Monthly recurring revenue from this user
+        ai_context:
+          synonyms: [revenue, mrr, payment]
+
+      - name: CONVERTED_FLAG
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: "CASE WHEN converted_to_paid THEN 1 ELSE 0 END"
+        datatype: Integer
+        description: "1 if converted to paid, 0 otherwise (helper for aggregations)"
+        custom_extensions:
+          - vendor_name: SNOWFLAKE
+            data: '{"access_modifier":"private_access"}'
+
+      - name: SIGNUP_DATE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: signup_date
+        datatype: Date
+        dimension:
+          is_time: true
+        description: Date when user signed up — primary time dimension
+        ai_context:
+          synonyms: [date, signup day]
+
+      - name: SIGNUP_MONTH
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: "DATE_TRUNC('month', signup_date)"
+        datatype: Date
+        dimension:
+          is_time: true
+        description: Month of signup — primary cohort identifier
+        ai_context:
+          synonyms: [month, cohort, cohort month, signup cohort]
+
+      - name: SIGNUP_QUARTER
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: "DATE_TRUNC('quarter', signup_date)"
+        datatype: Date
+        dimension:
+          is_time: true
+        description: Quarter of signup
+        ai_context:
+          synonyms: [quarter, qtr]
+
+      - name: SIGNUP_WEEK
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: "DATE_TRUNC('week', signup_date)"
+        datatype: Date
+        dimension:
+          is_time: true
+        description: Week of signup for weekly cohort analysis
+        ai_context:
+          synonyms: [week]
+
+      - name: SIGNUP_YEAR
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: "DATE_PART('year', signup_date)"
+        datatype: Integer
+        dimension:
+          is_time: true
+        description: Year of signup
+        ai_context:
+          synonyms: [year]
+
+    custom_extensions:
+      - vendor_name: SNOWFLAKE
+        data: >-
+          {"filters":[
+            {"name":"paid_users_only","expr":"converted_to_paid = TRUE","description":"Filter to include only users who converted to paid plans","synonyms":["paid","converted","paying customers"]},
+            {"name":"enterprise_tier","expr":"plan_type = 'enterprise'","description":"Filter for enterprise plan users only","synonyms":["enterprise","enterprise customers"]},
+            {"name":"last_30_days","expr":"signup_date >= DATEADD('day', -30, CURRENT_DATE())","description":"Filter for signups in the last 30 days","synonyms":["recent","last month"]},
+            {"name":"last_90_days","expr":"signup_date >= DATEADD('day', -90, CURRENT_DATE())","description":"Filter for signups in the last 90 days","synonyms":["last quarter"]},
+            {"name":"current_year","expr":"DATE_PART('year', signup_date) = DATE_PART('year', CURRENT_DATE())","description":"Filter for signups in the current year","synonyms":["this year","ytd"]}
+          ]}
+
+  - name: TOUCHPOINTS
+    source: PM_AGENTS_DEMO.APP.TOUCHPOINTS
+    primary_key: [TOUCHPOINT_ID]
+    description: >-
+      Marketing touchpoints before signup for multi-touch attribution analysis.
+      Tracks channel interactions, campaigns, and ad spend.
+    fields:
+      - name: TOUCHPOINT_ID
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: touchpoint_id
+        datatype: String
+        description: Unique touchpoint identifier
+
+      - name: USER_EMAIL
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: user_email
+        datatype: String
+        description: User email for joining to signups
+
+      - name: CHANNEL
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: channel
+        datatype: String
+        description: Marketing channel of this touchpoint
+        ai_context:
+          synonyms: [marketing channel, touchpoint channel, attribution channel, touch channel]
+          examples: [google_ads, facebook_ads, linkedin_ads, email, organic_search, blog, webinar]
+
+      - name: CAMPAIGN_NAME
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: campaign_name
+        datatype: String
+        description: Marketing campaign name
+        ai_context:
+          synonyms: [campaign, marketing campaign]
+
+      - name: CONTENT_TYPE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: content_type
+        datatype: String
+        description: Type of content for this touchpoint
+        ai_context:
+          examples: [content, email, ad]
+
+      - name: AD_SPEND
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: ad_spend
+        datatype: Decimal
+        description: Ad spend for this touchpoint
+        ai_context:
+          synonyms: [spend, cost, ad cost]
+
+      - name: CLICKS
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: clicks
+        datatype: Integer
+        description: Number of clicks from this touchpoint
+
+      - name: IMPRESSIONS
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: impressions
+        datatype: Integer
+        description: Number of impressions for this touchpoint
+
+      - name: TOUCHPOINT_DATE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: touchpoint_date
+        datatype: DateTimeTz
+        dimension:
+          is_time: true
+        description: Date/time of touchpoint
+        ai_context:
+          synonyms: [touch date, interaction date]
+
+      - name: TOUCHPOINT_MONTH
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: "DATE_TRUNC('month', touchpoint_date)"
+        datatype: DateTimeTz
+        dimension:
+          is_time: true
+        description: Month of touchpoint
+
+    custom_extensions:
+      - vendor_name: SNOWFLAKE
+        data: >-
+          {"filters":[
+            {"name":"paid_channels_only","expr":"channel IN ('google_ads', 'facebook_ads', 'linkedin_ads')","description":"Filter for paid advertising channels only","synonyms":["paid ads","advertising"]},
+            {"name":"organic_channels_only","expr":"channel IN ('organic_search', 'blog', 'email', 'webinar')","description":"Filter for organic (non-paid) channels","synonyms":["organic","free channels"]}
+          ]}
+
+  - name: USER_ACTIVITY
+    source: PM_AGENTS_DEMO.APP.USER_ACTIVITY
+    primary_key: [ACTIVITY_ID]
+    description: >-
+      Post-signup user engagement for retention analysis. Tracks feature
+      usage, session duration, and activity patterns.
+    fields:
+      - name: ACTIVITY_ID
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: activity_id
+        datatype: String
+        description: Unique activity identifier
+
+      - name: SIGNUP_ID
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: signup_id
+        datatype: String
+        description: Foreign key to signups table
+
+      - name: FEATURE_USED
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: feature_used
+        datatype: String
+        description: Feature or action performed
+        ai_context:
+          synonyms: [feature, action type, event type]
+          examples: [dashboard_view, report_create, data_import, export_csv, share_report, api_call, integration_setup, team_invite]
+
+      - name: IS_ACTIVE_DAY
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: is_active_day
+        datatype: Boolean
+        description: Whether this counts as an active day
+
+      - name: ACTIONS_COUNT
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: actions_count
+        datatype: Integer
+        description: Number of actions in this session
+        ai_context:
+          synonyms: [actions, action count]
+
+      - name: SESSION_DURATION_MINUTES
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: session_duration_minutes
+        datatype: Integer
+        description: Duration of session in minutes
+        ai_context:
+          synonyms: [duration, session length, time spent]
+
+      - name: ACTIVITY_DATE
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: activity_date
+        datatype: Date
+        dimension:
+          is_time: true
+        description: Date of activity
+        ai_context:
+          synonyms: [event date, action date]
+
+      - name: ACTIVITY_MONTH
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: "DATE_TRUNC('month', activity_date)"
+        datatype: Date
+        dimension:
+          is_time: true
+        description: Month of activity
+
+      - name: ACTIVITY_WEEK
+        expression:
+          dialects:
+            - dialect: SNOWFLAKE
+              expression: "DATE_TRUNC('week', activity_date)"
+        datatype: Date
+        dimension:
+          is_time: true
+        description: Week of activity
+
+    custom_extensions:
+      - vendor_name: SNOWFLAKE
+        data: >-
+          {"filters":[
+            {"name":"high_engagement","expr":"session_duration_minutes > 30 OR actions_count > 10","description":"Filter for sessions with high engagement (>30 min or >10 actions)","synonyms":["engaged","power users"]},
+            {"name":"core_features","expr":"feature_used IN ('report_create', 'data_import', 'api_call', 'integration_setup')","description":"Filter for core product features usage"}
+          ]}
+
+relationships:
+  - name: TOUCHPOINTS_TO_SIGNUPS
+    from: TOUCHPOINTS
+    to: SIGNUPS
+    from_columns: [USER_EMAIL]
+    to_columns: [USER_EMAIL]
+    custom_extensions:
+      - vendor_name: SNOWFLAKE
+        data: '{"join_type":"left_outer","relationship_type":"many_to_one"}'
+
+  - name: ACTIVITY_TO_SIGNUPS
+    from: USER_ACTIVITY
+    to: SIGNUPS
+    from_columns: [SIGNUP_ID]
+    to_columns: [SIGNUP_ID]
+    custom_extensions:
+      - vendor_name: SNOWFLAKE
+        data: '{"join_type":"left_outer","relationship_type":"many_to_one"}'
+
+metrics:
+  # ── SIGNUPS metrics ─────────────────────────────────────────────────────────
+  - name: TOTAL_SIGNUPS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: COUNT(signup_id)
+    datatype: Integer
+    description: Total count of signups
+    ai_context:
+      synonyms: [signups, signup count, number of signups, how many signups]
+
+  - name: TOTAL_CONVERSIONS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END)"
+    datatype: Integer
+    description: Total number of users who converted to paid
+    ai_context:
+      synonyms: [conversions, paid users, converted users]
+
+  - name: TOTAL_CONVERTED_FLAG
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END)"
+    datatype: Integer
+    description: Sum of converted flags (helper metric)
+    custom_extensions:
+      - vendor_name: SNOWFLAKE
+        data: '{"access_modifier":"private_access"}'
+
+  - name: TOTAL_REVENUE
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: SUM(mrr_amount)
+    datatype: Decimal
+    description: Total MRR revenue from converted users
+    ai_context:
+      synonyms: [revenue, total mrr, total payments]
+
+  - name: UNIQUE_USERS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: COUNT(DISTINCT user_email)
+    datatype: Integer
+    description: Count of distinct users
+    ai_context:
+      synonyms: [users, user count, cohort size]
+
+  - name: UNIQUE_COUNTRIES
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: COUNT(DISTINCT country)
+    datatype: Integer
+    description: Count of distinct countries
+    ai_context:
+      synonyms: [countries, country count]
+
+  - name: CONVERSION_RATE
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(signup_id), 0), 1)"
+    datatype: Decimal
+    description: Percentage of signups that converted to paid
+    ai_context:
+      synonyms: [cvr, conversion percentage, percent converted]
+
+  - name: overall_conversion_rate
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0)"
+    datatype: Decimal
+    description: Overall conversion rate percentage using NULLIF-safe denominator
+
+  - name: AVG_REVENUE
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(AVG(mrr_amount), 2)"
+    datatype: Decimal
+    description: Average MRR per converted user
+    ai_context:
+      synonyms: [average revenue, avg mrr, arpu]
+
+  - name: AVG_MRR_AMOUNT
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: AVG(mrr_amount)
+    datatype: Decimal
+    description: Average monthly recurring revenue per user row
+
+  - name: AVG_MRR_PER_USER
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: AVG(mrr_amount)
+    datatype: Decimal
+    description: Average MRR per user across the selected population
+
+  - name: CUMULATIVE_REVENUE
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "SUM(signups.total_revenue) OVER (PARTITION BY EXCLUDING signups.signup_date ORDER BY signups.signup_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"
+    datatype: Decimal
+    description: Running total of revenue from start of period
+    ai_context:
+      synonyms: [running revenue, revenue to date]
+
+  - name: CUMULATIVE_SIGNUPS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "SUM(signups.total_signups) OVER (PARTITION BY EXCLUDING signups.signup_date ORDER BY signups.signup_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"
+    datatype: Integer
+    description: Running total of signups from start of period
+    ai_context:
+      synonyms: [running total, total to date, ytd signups]
+
+  - name: ROLLING_30_DAY_CONVERSION_RATE
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "AVG(signups.conversion_rate) OVER (PARTITION BY EXCLUDING signups.signup_date, signups.signup_month ORDER BY signups.signup_date RANGE BETWEEN INTERVAL '29 days' PRECEDING AND CURRENT ROW)"
+    datatype: Decimal
+    description: Rolling 30-day conversion rate for trend smoothing
+    ai_context:
+      synonyms: [monthly moving conversion rate, 30 day cvr]
+
+  - name: ROLLING_7_DAY_SIGNUPS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "AVG(signups.total_signups) OVER (PARTITION BY EXCLUDING signups.signup_date, signups.signup_month ORDER BY signups.signup_date RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW)"
+    datatype: Decimal
+    description: Rolling 7-day average of signups for trend analysis
+    ai_context:
+      synonyms: [7 day rolling average, weekly moving average, rolling average signups]
+
+  - name: SIGNUPS_VS_7_DAYS_AGO
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "LAG(signups.total_signups, 7) OVER (PARTITION BY EXCLUDING signups.signup_date, signups.signup_month ORDER BY signups.signup_date)"
+    datatype: Integer
+    description: Signup count from 7 days ago for week-over-week comparison
+    ai_context:
+      synonyms: [previous week signups, wow signups]
+
+  # ── TOUCHPOINTS metrics ─────────────────────────────────────────────────────
+  - name: TOTAL_AD_SPEND
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: SUM(ad_spend)
+    datatype: Decimal
+    description: Total advertising spend
+    ai_context:
+      synonyms: [ad spend, marketing spend, total spend]
+
+  - name: TOTAL_CLICKS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: SUM(clicks)
+    datatype: Integer
+    description: Total clicks across touchpoints
+
+  - name: TOTAL_IMPRESSIONS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: SUM(impressions)
+    datatype: Integer
+    description: Total impressions across touchpoints
+
+  - name: TOTAL_TOUCHPOINTS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: COUNT(touchpoint_id)
+    datatype: Integer
+    description: Total number of touchpoints
+    ai_context:
+      synonyms: [touchpoints, touches, interactions]
+
+  - name: UNIQUE_USERS_TOUCHED
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: COUNT(DISTINCT user_email)
+    datatype: Integer
+    description: Distinct users with touchpoints
+    ai_context:
+      synonyms: [users touched, reach]
+
+  - name: CLICK_THROUGH_RATE
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(SUM(clicks) * 100.0 / NULLIF(SUM(impressions), 0), 2)"
+    datatype: Decimal
+    description: Click-through rate (clicks / impressions)
+    ai_context:
+      synonyms: [ctr]
+
+  - name: COST_PER_CLICK
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(SUM(ad_spend) / NULLIF(SUM(clicks), 0), 2)"
+    datatype: Decimal
+    description: Average cost per click
+    ai_context:
+      synonyms: [cpc]
+
+  - name: COST_PER_THOUSAND_IMPRESSIONS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(SUM(ad_spend) * 1000.0 / NULLIF(SUM(impressions), 0), 2)"
+    datatype: Decimal
+    description: Cost per thousand impressions (CPM)
+    ai_context:
+      synonyms: [cpm]
+
+  - name: AVG_TOUCHPOINTS_PER_USER
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(COUNT(touchpoint_id) * 1.0 / NULLIF(COUNT(DISTINCT user_email), 0), 1)"
+    datatype: Decimal
+    description: Average touchpoints per user
+    ai_context:
+      synonyms: [touches per user, average touches]
+
+  - name: CUMULATIVE_AD_SPEND
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "SUM(touchpoints.total_ad_spend) OVER (PARTITION BY EXCLUDING touchpoints.touchpoint_date ORDER BY touchpoints.touchpoint_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)"
+    datatype: Decimal
+    description: Running total of ad spend
+    ai_context:
+      synonyms: [spend to date, running ad spend]
+
+  - name: ROLLING_7_DAY_AD_SPEND
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "AVG(touchpoints.total_ad_spend) OVER (PARTITION BY EXCLUDING touchpoints.touchpoint_date, touchpoints.touchpoint_month ORDER BY touchpoints.touchpoint_date RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW)"
+    datatype: Decimal
+    description: Rolling 7-day average of ad spend
+    ai_context:
+      synonyms: [weekly average spend, 7 day spend]
+
+  - name: ROLLING_7_DAY_CTR
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "AVG(touchpoints.click_through_rate) OVER (PARTITION BY EXCLUDING touchpoints.touchpoint_date, touchpoints.touchpoint_month ORDER BY touchpoints.touchpoint_date RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW)"
+    datatype: Decimal
+    description: Rolling 7-day click-through rate
+    ai_context:
+      synonyms: [weekly average ctr, 7 day ctr]
+
+  - name: AVG_COST_PER_CLICK_PER_USER
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "AVG(CASE WHEN ROW_NUMBER() OVER (PARTITION BY user_email ORDER BY touchpoint_id) = 1 THEN SUM(ad_spend) OVER (PARTITION BY user_email) / NULLIF(SUM(clicks) OVER (PARTITION BY user_email), 0) END)"
+    datatype: Decimal
+    description: Per-user cost per click averaged across all users
+
+  # ── USER_ACTIVITY metrics ────────────────────────────────────────────────────
+  - name: ACTIVE_USERS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: COUNT(DISTINCT signup_id)
+    datatype: Integer
+    description: Count of distinct active users
+    ai_context:
+      synonyms: [users active, engaged users, dau, mau]
+
+  - name: TOTAL_SESSIONS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: COUNT(activity_id)
+    datatype: Integer
+    description: Total number of activity sessions
+    ai_context:
+      synonyms: [sessions, activity count, events]
+
+  - name: TOTAL_ACTIONS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: SUM(actions_count)
+    datatype: Integer
+    description: Total actions performed
+
+  - name: TOTAL_SESSION_DURATION
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: SUM(session_duration_minutes)
+    datatype: Integer
+    description: Total time spent in sessions (minutes)
+    ai_context:
+      synonyms: [total time, engagement time]
+
+  - name: AVG_SESSION_DURATION
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(AVG(session_duration_minutes), 0)"
+    datatype: Decimal
+    description: Average session duration in minutes
+    ai_context:
+      synonyms: [average duration, session length, avg time]
+
+  - name: AVG_SESSION_DURATION_MINUTES
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: AVG(session_duration_minutes)
+    datatype: Decimal
+    description: Average session duration in minutes for LLM scoring
+
+  - name: AVG_ACTIONS_PER_SESSION
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(SUM(actions_count) * 1.0 / NULLIF(COUNT(activity_id), 0), 1)"
+    datatype: Decimal
+    description: Average actions per session
+    ai_context:
+      synonyms: [actions per session]
+
+  - name: SESSIONS_PER_USER
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(COUNT(activity_id) * 1.0 / NULLIF(COUNT(DISTINCT signup_id), 0), 1)"
+    datatype: Decimal
+    description: Average sessions per user
+    ai_context:
+      synonyms: [frequency, engagement frequency]
+
+  - name: ROLLING_30_DAY_SESSIONS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "SUM(user_activity.total_sessions) OVER (PARTITION BY EXCLUDING user_activity.activity_date ORDER BY user_activity.activity_date RANGE BETWEEN INTERVAL '29 days' PRECEDING AND CURRENT ROW)"
+    datatype: Integer
+    description: Rolling 30-day total sessions for monthly activity trend
+    ai_context:
+      synonyms: [monthly rolling sessions, 30 day sessions]
+
+  - name: ROLLING_7_DAY_ACTIVE_USERS
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "AVG(user_activity.active_users) OVER (PARTITION BY EXCLUDING user_activity.activity_date, user_activity.activity_month ORDER BY user_activity.activity_date RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW)"
+    datatype: Decimal
+    description: Rolling 7-day average of active users (DAU smoothed)
+    ai_context:
+      synonyms: [weekly average dau, 7 day active users]
+
+  - name: ROLLING_7_DAY_AVG_DURATION
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "AVG(user_activity.avg_session_duration) OVER (PARTITION BY EXCLUDING user_activity.activity_date, user_activity.activity_month ORDER BY user_activity.activity_date RANGE BETWEEN INTERVAL '6 days' PRECEDING AND CURRENT ROW)"
+    datatype: Decimal
+    description: Rolling 7-day average session duration
+    ai_context:
+      synonyms: [weekly avg duration, 7 day duration]
+
+  - name: USERS_VS_7_DAYS_AGO
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "LAG(user_activity.active_users, 7) OVER (PARTITION BY EXCLUDING user_activity.activity_date, user_activity.activity_month ORDER BY user_activity.activity_date)"
+    datatype: Integer
+    description: Active user count from 7 days ago for week-over-week comparison
+    ai_context:
+      synonyms: [previous week users, wow users]
+
+  # ── Cross-dataset derived metrics ────────────────────────────────────────────
+  - name: COST_PER_ACQUISITION
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(touchpoints.total_ad_spend / NULLIF(signups.total_signups, 0), 2)"
+    datatype: Decimal
+    description: Average cost to acquire a signup (total ad spend / total signups)
+    ai_context:
+      synonyms: [cpa, acquisition cost]
+
+  - name: COST_PER_CONVERSION
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(touchpoints.total_ad_spend / NULLIF(signups.total_conversions, 0), 2)"
+    datatype: Decimal
+    description: Average cost per paid conversion
+    ai_context:
+      synonyms: [cost per paying customer, conversion cost]
+
+  - name: RETURN_ON_AD_SPEND
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND(signups.total_revenue / NULLIF(touchpoints.total_ad_spend, 0), 2)"
+    datatype: Decimal
+    description: Revenue generated per dollar of ad spend (ROAS)
+    ai_context:
+      synonyms: [roas, ad roi]
+
+  - name: ENGAGEMENT_SCORE
+    expression:
+      dialects:
+        - dialect: SNOWFLAKE
+          expression: "ROUND((user_activity.total_sessions * user_activity.avg_session_duration) / NULLIF(user_activity.active_users, 0), 1)"
+    datatype: Decimal
+    description: Combined engagement metric (sessions * avg duration / users)
+    ai_context:
+      synonyms: [user engagement]
+
+custom_extensions:
+  - vendor_name: SNOWFLAKE
+    data: >-
+      {"verified_queries":[
+        {"name":"SIGNUPS_BY_CHANNEL","question":"How many signups by channel?","sql":"SELECT signup_channel, COUNT(*) AS signups, SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS conversions, ROUND(SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS conversion_rate FROM PM_AGENTS_DEMO.APP.SIGNUPS GROUP BY signup_channel ORDER BY signups DESC","verified_by":"growth_analytics_team"},
+        {"name":"MONTHLY_SIGNUP_TREND","question":"What is the monthly signup trend?","sql":"SELECT DATE_TRUNC('month', signup_date) AS month, COUNT(*) AS signups, SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS conversions, ROUND(SUM(mrr_amount), 2) AS revenue FROM PM_AGENTS_DEMO.APP.SIGNUPS GROUP BY DATE_TRUNC('month', signup_date) ORDER BY month DESC","verified_by":"growth_analytics_team","use_as_onboarding_question":true},
+        {"name":"CONVERSION_RATE_BY_CHANNEL","question":"What is the conversion rate by channel?","sql":"SELECT signup_channel, COUNT(*) AS signups, SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS conversions, ROUND(SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS conversion_rate FROM PM_AGENTS_DEMO.APP.SIGNUPS GROUP BY signup_channel ORDER BY conversion_rate DESC","verified_by":"growth_analytics_team"},
+        {"name":"REVENUE_BY_PLAN_TYPE","question":"What is the revenue by plan type?","sql":"SELECT plan_type, COUNT(*) AS users, ROUND(SUM(mrr_amount), 2) AS total_revenue, ROUND(AVG(mrr_amount), 2) AS avg_revenue FROM PM_AGENTS_DEMO.APP.SIGNUPS WHERE converted_to_paid = TRUE GROUP BY plan_type ORDER BY total_revenue DESC","verified_by":"growth_analytics_team"},
+        {"name":"TOUCHPOINTS_BY_CHANNEL","question":"How many touchpoints by channel?","sql":"SELECT channel, COUNT(*) AS touchpoints, COUNT(DISTINCT user_email) AS unique_users, ROUND(SUM(ad_spend), 2) AS total_spend, ROUND(SUM(ad_spend) / NULLIF(SUM(clicks), 0), 2) AS cost_per_click FROM PM_AGENTS_DEMO.APP.TOUCHPOINTS GROUP BY channel ORDER BY touchpoints DESC","verified_by":"marketing_analytics_team"},
+        {"name":"USER_ACTIVITY_BY_FEATURE","question":"What features are most used?","sql":"SELECT feature_used, COUNT(*) AS usage_count, COUNT(DISTINCT signup_id) AS unique_users, ROUND(AVG(session_duration_minutes), 1) AS avg_session_minutes FROM PM_AGENTS_DEMO.APP.USER_ACTIVITY GROUP BY feature_used ORDER BY usage_count DESC","verified_by":"product_analytics_team","use_as_onboarding_question":true},
+        {"name":"RETENTION_BY_COHORT","question":"What is the retention by signup cohort?","sql":"WITH cohort_sizes AS (SELECT DATE_TRUNC('month', signup_date) AS cohort_month, COUNT(DISTINCT signup_id) AS cohort_size FROM PM_AGENTS_DEMO.APP.SIGNUPS GROUP BY DATE_TRUNC('month', signup_date)), activity_by_cohort AS (SELECT DATE_TRUNC('month', s.signup_date) AS cohort_month, COUNT(DISTINCT a.signup_id) AS active_users FROM PM_AGENTS_DEMO.APP.SIGNUPS s JOIN PM_AGENTS_DEMO.APP.USER_ACTIVITY a ON s.signup_id = a.signup_id GROUP BY DATE_TRUNC('month', s.signup_date)) SELECT c.cohort_month, c.cohort_size, COALESCE(a.active_users, 0) AS active_users, ROUND(COALESCE(a.active_users, 0) * 100.0 / c.cohort_size, 1) AS retention_rate FROM cohort_sizes c LEFT JOIN activity_by_cohort a ON c.cohort_month = a.cohort_month ORDER BY c.cohort_month DESC","verified_by":"growth_analytics_team"},
+        {"name":"MARKETING_EFFICIENCY","question":"What is our marketing efficiency by channel?","sql":"WITH channel_metrics AS (SELECT t.channel, COUNT(DISTINCT t.user_email) AS users_touched, SUM(t.ad_spend) AS total_spend, SUM(t.clicks) AS total_clicks, SUM(t.impressions) AS total_impressions FROM PM_AGENTS_DEMO.APP.TOUCHPOINTS t GROUP BY t.channel), conversions AS (SELECT t.channel, COUNT(DISTINCT s.user_email) AS conversions, SUM(s.mrr_amount) AS revenue FROM PM_AGENTS_DEMO.APP.TOUCHPOINTS t JOIN PM_AGENTS_DEMO.APP.SIGNUPS s ON t.user_email = s.user_email WHERE s.converted_to_paid = TRUE GROUP BY t.channel) SELECT cm.channel, cm.users_touched, COALESCE(c.conversions, 0) AS conversions, ROUND(cm.total_spend, 2) AS total_spend, ROUND(cm.total_spend / NULLIF(c.conversions, 0), 2) AS cost_per_conversion, ROUND(c.revenue / NULLIF(cm.total_spend, 0), 2) AS roas FROM channel_metrics cm LEFT JOIN conversions c ON cm.channel = c.channel ORDER BY cm.total_spend DESC","verified_by":"marketing_analytics_team","use_as_onboarding_question":true}
+      ]}
