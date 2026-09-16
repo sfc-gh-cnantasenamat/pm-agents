@@ -1,0 +1,174 @@
+name: Deploy and evaluate Cortex project
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'cortex_project/**'
+      - 'scripts/**'
+      - 'evals/**'
+      - 'sql/**'
+      - '.github/workflows/deploy.yml'
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'cortex_project/**'
+      - 'scripts/**'
+      - 'evals/**'
+      - 'sql/**'
+      - '.github/workflows/deploy.yml'
+
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PyYAML
+        run: python3 -m pip install pyyaml
+
+      - name: Validate manifest artifacts
+        run: python3 scripts/validate.py
+
+  deploy_candidate:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: validate
+    runs-on: ubuntu-latest
+    env:
+      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER }}
+      WAREHOUSE: COMPUTE_WH
+      GIT_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@v2.0
+        with:
+          default-config-file-path: ".snowflake/config.toml"
+
+      - name: Write private key to file
+        run: |
+          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > /tmp/rsa_key.p8
+          chmod 600 /tmp/rsa_key.p8
+
+      - name: Deploy semantic view and candidate agent version
+        env:
+          SNOWFLAKE_CONNECTIONS_DEFAULT_AUTHENTICATOR: SNOWFLAKE_JWT
+          SNOWFLAKE_CONNECTIONS_DEFAULT_TOKEN_FILE_PATH: /tmp/rsa_key.p8
+        run: bash scripts/deploy.sh
+
+      - name: Clean up
+        if: always()
+        run: rm -f /tmp/rsa_key.p8
+
+  eval_sv:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: deploy_candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER }}
+      WAREHOUSE: COMPUTE_WH
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@v2.0
+        with:
+          default-config-file-path: ".snowflake/config.toml"
+
+      - name: Install PyYAML
+        run: python3 -m pip install pyyaml
+
+      - name: Write private key to file
+        run: |
+          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > /tmp/rsa_key.p8
+          chmod 600 /tmp/rsa_key.p8
+
+      - name: Evaluate semantic view SQL correctness
+        env:
+          SNOWFLAKE_CONNECTIONS_DEFAULT_AUTHENTICATOR: SNOWFLAKE_JWT
+          SNOWFLAKE_CONNECTIONS_DEFAULT_TOKEN_FILE_PATH: /tmp/rsa_key.p8
+        run: bash scripts/eval_sv.sh
+
+      - name: Clean up
+        if: always()
+        run: rm -f /tmp/rsa_key.p8
+
+  eval:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: eval_sv
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER }}
+      WAREHOUSE: COMPUTE_WH
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@v2.0
+        with:
+          default-config-file-path: ".snowflake/config.toml"
+
+      - name: Install PyYAML
+        run: python3 -m pip install pyyaml
+
+      - name: Write private key to file
+        run: |
+          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > /tmp/rsa_key.p8
+          chmod 600 /tmp/rsa_key.p8
+
+      - name: Run native agent evaluation
+        env:
+          SNOWFLAKE_CONNECTIONS_DEFAULT_AUTHENTICATOR: SNOWFLAKE_JWT
+          SNOWFLAKE_CONNECTIONS_DEFAULT_TOKEN_FILE_PATH: /tmp/rsa_key.p8
+        run: bash scripts/eval.sh
+
+      - name: Clean up
+        if: always()
+        run: rm -f /tmp/rsa_key.p8
+
+  promote:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: eval
+    runs-on: ubuntu-latest
+    env:
+      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_USER: ${{ secrets.SNOWFLAKE_USER }}
+      WAREHOUSE: COMPUTE_WH
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Snowflake CLI
+        uses: snowflakedb/snowflake-cli-action@v2.0
+        with:
+          default-config-file-path: ".snowflake/config.toml"
+
+      - name: Write private key to file
+        run: |
+          echo "${{ secrets.SNOWFLAKE_PRIVATE_KEY }}" > /tmp/rsa_key.p8
+          chmod 600 /tmp/rsa_key.p8
+
+      - name: Promote last version to production
+        env:
+          SNOWFLAKE_CONNECTIONS_DEFAULT_AUTHENTICATOR: SNOWFLAKE_JWT
+          SNOWFLAKE_CONNECTIONS_DEFAULT_TOKEN_FILE_PATH: /tmp/rsa_key.p8
+        run: bash scripts/promote.sh
+
+      - name: Clean up
+        if: always()
+        run: rm -f /tmp/rsa_key.p8
