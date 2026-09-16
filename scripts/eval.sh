@@ -184,7 +184,12 @@ if failures:
 print("GATE PASSED")
 PY
 
-org_acct="$(snow sql -q "SELECT LOWER(CURRENT_ORGANIZATION_NAME()) || '/' || LOWER(CURRENT_ACCOUNT_NAME());" --warehouse "$WAREHOUSE" --format json 2>/dev/null || true)"
+if [[ ${PIPESTATUS[0]:-$?} -ne 0 ]]; then
+  echo "GATE FAILED: agent eval scores below threshold — promote blocked" >&2
+  exit 1
+fi
+
+"$(snow sql -q "SELECT LOWER(CURRENT_ORGANIZATION_NAME()) || '/' || LOWER(CURRENT_ACCOUNT_NAME());" --warehouse "$WAREHOUSE" --format json 2>/dev/null || true)"
 echo "Snowsight eval URL (best-effort):"
 echo "https://app.snowflake.com/<org>/<account>/#/agents/database/${AGENT_DB}/schema/${AGENT_SCHEMA}/agent/${AGENT_NAME}/evaluations/${RUN_NAME}/records"
 echo "$org_acct"

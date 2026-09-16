@@ -162,4 +162,9 @@ if failures:
 print("SV GATE PASSED")
 PY
 
+if [[ ${PIPESTATUS[0]:-$?} -ne 0 ]]; then
+  echo "SV GATE FAILED: scores below threshold — promote blocked" >&2
+  exit 1
+fi
+
 echo "$RUN_NAME" > "$EVAL_DIR/run_name.txt"
