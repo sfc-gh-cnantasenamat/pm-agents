@@ -189,8 +189,7 @@ if [[ ${PIPESTATUS[0]:-$?} -ne 0 ]]; then
   exit 1
 fi
 
-"$(snow sql -q "SELECT LOWER(CURRENT_ORGANIZATION_NAME()) || '/' || LOWER(CURRENT_ACCOUNT_NAME());" --warehouse "$WAREHOUSE" --format json 2>/dev/null || true)"
-echo "Snowsight eval URL (best-effort):"
-echo "https://app.snowflake.com/<org>/<account>/#/agents/database/${AGENT_DB}/schema/${AGENT_SCHEMA}/agent/${AGENT_NAME}/evaluations/${RUN_NAME}/records"
-echo "$org_acct"
+org_acct="$(snow sql -q "SELECT LOWER(CURRENT_ORGANIZATION_NAME()) || '/' || LOWER(CURRENT_ACCOUNT_NAME());" --warehouse "$WAREHOUSE" --format json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print(list(d[0].values())[0])" 2>/dev/null || echo '<org>/<account>')"
+echo "Snowsight eval URL:"
+echo "https://app.snowflake.com/${org_acct}/#/agents/database/${AGENT_DB}/schema/${AGENT_SCHEMA}/agent/${AGENT_NAME}/evaluations/${RUN_NAME}/records"
 echo "$RUN_NAME" > "$EVAL_DIR/run_name.txt"
