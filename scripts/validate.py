@@ -26,13 +26,14 @@ def _validate_osi(path: str, spec: dict, errors: list[str]) -> None:
         from ossie import OssieSemanticModel
         from pydantic import ValidationError
     except ImportError:
-        # Auto-install apache-ossie if not present, then clear the import cache.
+        # Auto-install apache-ossie, invalidate the finder cache, then retry.
+        import importlib
         import subprocess
         subprocess.check_call([
             sys.executable, "-m", "pip", "install", "-q",
             "git+https://github.com/apache/ossie.git#subdirectory=python",
         ])
-        # Remove cached failure so the retry import works.
+        importlib.invalidate_caches()
         for _k in [k for k in sys.modules if k.startswith("ossie")]:
             del sys.modules[_k]
         from ossie import OssieSemanticModel

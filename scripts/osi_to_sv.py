@@ -32,11 +32,13 @@ try:
         OssieSemanticModel,
     )
 except ImportError:
-    # Auto-install apache-ossie if not present, then clear the import cache.
+    # Auto-install apache-ossie, invalidate finder caches, then retry.
+    import importlib
     subprocess.check_call([
         sys.executable, "-m", "pip", "install", "-q",
         "git+https://github.com/apache/ossie.git#subdirectory=python",
     ])
+    importlib.invalidate_caches()
     for _k in [k for k in sys.modules if k.startswith("ossie")]:
         del sys.modules[_k]
     from ossie import (  # type: ignore[no-redef]
