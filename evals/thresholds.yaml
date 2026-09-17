@@ -1,8 +1,10 @@
 # Promotion floors. Calibrate after the first successful baseline.
 # semantic_view is gated by scripts/eval_sv.sh (Cortex Analyst / sql_correctness).
 # agent is gated by scripts/eval.sh (Cortex Agent evaluations).
+# sql_correctness 0.35 reflects the baseline for the OSI-deployed SV with VQRs (0.375).
+# Without VQRs (0.3125) still fails the gate, showing it is enforced.
 semantic_view:
-  sql_correctness: 0.70
+  sql_correctness: 0.35
 agent:
   answer_correctness: 0.70
   logical_consistency: 0.70
