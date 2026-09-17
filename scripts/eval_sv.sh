@@ -54,9 +54,12 @@ try:
 except Exception:
     print(0)
 " 2>/dev/null || echo 0)"
+# Strip any surrounding whitespace / non-digit chars that would break integer comparison.
+version_count="$(echo "${version_count}" | tr -cd '0-9' | head -c 6)"
+version_count="${version_count:-0}"
 
 echo "Eval dataset versions: ${version_count}"
-if [[ "${version_count:-0}" -gt 20 ]]; then
+if (( version_count > 20 )); then
   echo "Eval dataset has ${version_count} versions (>20) — dropping to prevent stale-state null scores."
   snow sql -q "DROP DATASET IF EXISTS ${SV_EVAL_DS};" --warehouse "$WAREHOUSE" || true
   echo "Eval dataset dropped; it will be recreated fresh by this run."
