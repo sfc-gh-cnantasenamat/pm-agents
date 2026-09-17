@@ -879,7 +879,20 @@ metrics:
 custom_extensions:
   - vendor_name: SNOWFLAKE
     data: >-
-      {"verified_queries":[
+      {"metric_datasets":{
+        "TOTAL_SIGNUPS":"SIGNUPS","TOTAL_CONVERSIONS":"SIGNUPS","TOTAL_CONVERTED_FLAG":"SIGNUPS","TOTAL_REVENUE":"SIGNUPS",
+        "UNIQUE_USERS":"SIGNUPS","UNIQUE_COUNTRIES":"SIGNUPS","CONVERSION_RATE":"SIGNUPS","overall_conversion_rate":"SIGNUPS",
+        "AVG_REVENUE":"SIGNUPS","AVG_MRR_AMOUNT":"SIGNUPS","AVG_MRR_PER_USER":"SIGNUPS","CUMULATIVE_REVENUE":"SIGNUPS",
+        "CUMULATIVE_SIGNUPS":"SIGNUPS","ROLLING_30_DAY_CONVERSION_RATE":"SIGNUPS","ROLLING_7_DAY_SIGNUPS":"SIGNUPS","SIGNUPS_VS_7_DAYS_AGO":"SIGNUPS",
+        "TOTAL_AD_SPEND":"TOUCHPOINTS","TOTAL_CLICKS":"TOUCHPOINTS","TOTAL_IMPRESSIONS":"TOUCHPOINTS","TOTAL_TOUCHPOINTS":"TOUCHPOINTS",
+        "UNIQUE_USERS_TOUCHED":"TOUCHPOINTS","CLICK_THROUGH_RATE":"TOUCHPOINTS","COST_PER_CLICK":"TOUCHPOINTS","COST_PER_THOUSAND_IMPRESSIONS":"TOUCHPOINTS",
+        "AVG_TOUCHPOINTS_PER_USER":"TOUCHPOINTS","CUMULATIVE_AD_SPEND":"TOUCHPOINTS","ROLLING_7_DAY_AD_SPEND":"TOUCHPOINTS",
+        "ROLLING_7_DAY_CTR":"TOUCHPOINTS","AVG_COST_PER_CLICK_PER_USER":"TOUCHPOINTS",
+        "ACTIVE_USERS":"USER_ACTIVITY","TOTAL_SESSIONS":"USER_ACTIVITY","TOTAL_ACTIONS":"USER_ACTIVITY","TOTAL_SESSION_DURATION":"USER_ACTIVITY",
+        "AVG_SESSION_DURATION":"USER_ACTIVITY","AVG_SESSION_DURATION_MINUTES":"USER_ACTIVITY","AVG_ACTIONS_PER_SESSION":"USER_ACTIVITY",
+        "SESSIONS_PER_USER":"USER_ACTIVITY","ROLLING_30_DAY_SESSIONS":"USER_ACTIVITY","ROLLING_7_DAY_ACTIVE_USERS":"USER_ACTIVITY",
+        "ROLLING_7_DAY_AVG_DURATION":"USER_ACTIVITY","USERS_VS_7_DAYS_AGO":"USER_ACTIVITY"
+      },"verified_queries":[
         {"name":"SIGNUPS_BY_CHANNEL","question":"How many signups by channel?","sql":"SELECT signup_channel, COUNT(*) AS signups, SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS conversions, ROUND(SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) AS conversion_rate FROM PM_AGENTS_DEMO.APP.SIGNUPS GROUP BY signup_channel ORDER BY signups DESC","verified_by":"growth_analytics_team"},
         {"name":"MONTHLY_SIGNUP_TREND","question":"What is the monthly signup trend?","sql":"SELECT DATE_TRUNC('month', signup_date) AS month, COUNT(*) AS signups, SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS conversions, ROUND(SUM(mrr_amount), 2) AS revenue FROM PM_AGENTS_DEMO.APP.SIGNUPS GROUP BY DATE_TRUNC('month', signup_date) ORDER BY month DESC","verified_by":"growth_analytics_team","use_as_onboarding_question":true},
         {"name":"CONVERSION_RATE_BY_CHANNEL","question":"What is the conversion rate by channel?","sql":"SELECT signup_channel, COUNT(*) AS signups, SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) AS conversions, ROUND(SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END) * 100.0 / NULLIF(COUNT(*), 0), 1) AS conversion_rate FROM PM_AGENTS_DEMO.APP.SIGNUPS GROUP BY signup_channel ORDER BY conversion_rate DESC","verified_by":"growth_analytics_team"},

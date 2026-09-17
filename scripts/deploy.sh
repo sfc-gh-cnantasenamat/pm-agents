@@ -157,11 +157,11 @@ while IFS=$'\t' read -r path typ obj; do
       sva_payload="{\"tool\":\"osi_write_model\",\"parameters\":{\"file_path\":\"${stage_path}\",\"target_db_schema\":\"${db_schema}\",\"warehouse\":\"${WAREHOUSE}\"}}"
       sql="SELECT SYSTEM\$CORTEX_ANALYST_SVA_TOOL(\$\$${sva_payload}\$\$);"
       if run_sql "$sql"; then
-        echo "    OSI deploy OK — adding VQRs from custom_extensions"
-        if python3 scripts/add_vqrs.py "$file" "$obj" "$db_schema"; then
-          echo "    VQRs OK"
+        echo "    osi_write_model OK — converting OSI → native YAML with all metrics + VQRs"
+        if python3 scripts/osi_to_sv.py "$file" "$obj" "$db_schema"; then
+          echo "    OSI conversion + VQRs OK"
         else
-          echo "    WARNING: VQR merge failed (SV deployed but without VQRs)"
+          echo "    WARNING: OSI→native YAML conversion failed (SV deployed by osi_write_model only, may lack metrics/VQRs)"
         fi
         SUCCEEDED+=("$path -> $obj")
       else
