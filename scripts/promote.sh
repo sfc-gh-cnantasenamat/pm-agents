@@ -15,14 +15,19 @@ AGENT_SCHEMA="${AGENT_REST%%.*}"
 echo "Promoting LAST committed version of ${AGENT_FQN} to default/production"
 
 # Pre-flight: verify there is at least one committed version to promote.
-version_count="$(snow sql -q "
-USE SCHEMA ${AGENT_DB}.${AGENT_SCHEMA};
-SHOW VERSIONS IN AGENT ${AGENT_FQN};
-" --warehouse "$WAREHOUSE" --format json 2>/dev/null | python3 -c "
+version_count="$(snow sql -q "SHOW VERSIONS IN AGENT ${AGENT_FQN};" \
+  --warehouse "$WAREHOUSE" --format json 2>/dev/null | python3 -c "
 import json, sys
 try:
     rows = json.loads(sys.stdin.read())
-    print(len([r for r in rows if isinstance(r, dict)]))
+    # Handle flat list or nested list (multi-statement snow sql output).
+    flat = []
+    for r in rows:
+        if isinstance(r, dict):
+            flat.append(r)
+        elif isinstance(r, list):
+            flat.extend(v for v in r if isinstance(v, dict))
+    print(len(flat))
 except Exception:
     print(0)
 " 2>/dev/null || echo 0)"
