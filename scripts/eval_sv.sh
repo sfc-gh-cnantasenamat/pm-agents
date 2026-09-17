@@ -127,6 +127,12 @@ if [[ "$status" != "COMPLETED" ]]; then
   exit 1
 fi
 
+# Brief pause: results take a few seconds to be fully committed to the dataset
+# after EXECUTE_AI_EVALUATION returns COMPLETED. Without this, GET_ANALYST_AI_EVALUATION_DATA
+# can return null scores immediately after completion.
+echo "Waiting 20s for eval results to commit..."
+sleep 20
+
 scores_json="$(snow sql -q "
 SELECT METRIC_NAME, AVG(EVAL_AGG_SCORE) AS AVG_SCORE
 FROM TABLE(SNOWFLAKE.LOCAL.GET_ANALYST_AI_EVALUATION_DATA(
