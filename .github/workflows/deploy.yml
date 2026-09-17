@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.4.0
+        uses: actions/checkout@v5.1.0
 
       - name: Install PyYAML
         run: python3 -m pip install pyyaml
@@ -47,7 +47,7 @@ jobs:
       GIT_SHA: ${{ github.sha }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.4.0
+        uses: actions/checkout@v5.1.0
 
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@v2.0.2
@@ -80,7 +80,7 @@ jobs:
       WAREHOUSE: COMPUTE_WH
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.4.0
+        uses: actions/checkout@v5.1.0
 
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@v2.0.2
@@ -116,7 +116,7 @@ jobs:
       WAREHOUSE: COMPUTE_WH
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.4.0
+        uses: actions/checkout@v5.1.0
 
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@v2.0.2
@@ -151,7 +151,7 @@ jobs:
       WAREHOUSE: COMPUTE_WH
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4.4.0
+        uses: actions/checkout@v5.1.0
 
       - name: Install Snowflake CLI
         uses: snowflakedb/snowflake-cli-action@v2.0.2
