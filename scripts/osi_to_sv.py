@@ -2,15 +2,9 @@
 """Convert an OSI 0.2.0.dev0 semantic view YAML to the Snowflake native
 YAML format and deploy it with SYSTEM$CREATE_SEMANTIC_VIEW_FROM_YAML.
 
-VQRs are extracted from custom_extensions vendor_name:SNOWFLAKE and merged
-into the output YAML so they survive a full CREATE-OR-REPLACE deploy.
-
-Metric-to-table assignment heuristic:
-  - Metrics whose expression names match a field expression in exactly one
-    dataset are assigned to that dataset's table.
-  - Metrics whose expression references "dataset_name." patterns go to the
-    root (derived metrics).
-  - Everything else defaults to root (derived).
+Parsing is done via the apache-ossie Pydantic models for full spec
+compliance. VQRs and metric-dataset assignments are extracted from
+SNOWFLAKE vendor custom_extensions and included in the output.
 
 Usage:
   osi_to_sv.py <osi_yaml_path> <sv_fqn> <schema_fqn>
@@ -21,76 +15,104 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
 
 import yaml
 
+try:
+    from ossie import (
+        OssieCustomExtension,
+        OssieDataType,
+        OssieDialect,
+        OssieField,
+        OssieMetric,
+        OssieRelationship,
+        OssieSemanticModel,
+    )
+except ImportError:
+    # Auto-install apache-ossie if not present (CI may only have pyyaml).
+    subprocess.check_call([
+        sys.executable, "-m", "pip", "install", "-q",
+        "git+https://github.com/apache/ossie.git#subdirectory=python",
+    ])
+    from ossie import (  # type: ignore[no-redef]
+        OssieCustomExtension,
+        OssieDataType,
+        OssieDialect,
+        OssieField,
+        OssieMetric,
+        OssieRelationship,
+        OssieSemanticModel,
+    )
+
 
 SNOW = os.environ.get("SNOW_CLI", "snow")
 WAREHOUSE = os.environ.get("WAREHOUSE", "COMPUTE_WH")
 
-# Map OSI primitive types to Snowflake data_type strings.
-_DTYPE_MAP = {
-    "String": "VARCHAR(16777216)",
-    "Integer": "NUMBER(38,0)",
-    "Decimal": "NUMBER(38,6)",
-    "Float": "FLOAT",
-    "Boolean": "BOOLEAN",
-    "Date": "DATE",
-    "DateTime": "TIMESTAMP_NTZ(9)",
-    "DateTimeTz": "TIMESTAMP_LTZ(9)",
+# Map OSI DataType enum values to Snowflake data_type strings.
+_DTYPE_MAP: dict[OssieDataType, str] = {
+    OssieDataType.STRING: "VARCHAR(16777216)",
+    OssieDataType.INTEGER: "NUMBER(38,0)",
+    OssieDataType.DECIMAL: "NUMBER(38,6)",
+    OssieDataType.FLOAT: "FLOAT",
+    OssieDataType.BOOLEAN: "BOOLEAN",
+    OssieDataType.DATE: "DATE",
+    OssieDataType.DATE_TIME: "TIMESTAMP_NTZ(9)",
+    OssieDataType.DATE_TIME_TZ: "TIMESTAMP_LTZ(9)",
 }
 
-_NUMERIC_TYPES = {"Integer", "Decimal", "Float"}
+_NUMERIC_TYPES = {OssieDataType.INTEGER, OssieDataType.DECIMAL, OssieDataType.FLOAT}
+_TEMPORAL_TYPES = {OssieDataType.DATE, OssieDataType.TIME, OssieDataType.DATE_TIME, OssieDataType.DATE_TIME_TZ}
 
 
-def _dtype(osi_type: str) -> str:
+def _dtype(osi_type: OssieDataType | None) -> str:
+    if osi_type is None:
+        return "VARCHAR(16777216)"
     return _DTYPE_MAP.get(osi_type, "VARCHAR(16777216)")
 
 
-def _sf_expr(field_or_metric: dict) -> str:
-    dialects = (field_or_metric.get("expression") or {}).get("dialects") or []
-    for d in dialects:
-        if d.get("dialect", "").upper() == "SNOWFLAKE":
-            return d.get("expression", "")
-    return field_or_metric.get("name", "")
+def _sf_expr(item: OssieField | OssieMetric) -> str:
+    """Return the SNOWFLAKE-dialect expression, falling back to the item name."""
+    for d in (item.expression.dialects or []):
+        if d.dialect == OssieDialect.SNOWFLAKE:
+            return d.expression
+    return item.name
 
 
-def _snowflake_ext(item: dict) -> dict:
-    for ext in item.get("custom_extensions") or []:
-        if ext.get("vendor_name") == "SNOWFLAKE":
+def _sf_ext_data(extensions: list[OssieCustomExtension] | None) -> dict:
+    """Return parsed JSON data from the first SNOWFLAKE custom_extension."""
+    for ext in extensions or []:
+        if ext.vendor_name == "SNOWFLAKE":
             try:
-                return json.loads(ext.get("data", "{}"))
+                return json.loads(ext.data)
             except (json.JSONDecodeError, TypeError):
                 pass
     return {}
 
 
-def convert(osi: dict) -> dict:
-    sv: dict = {}
-    sv["name"] = osi.get("name", "SEMANTIC_VIEW")
-    if osi.get("description"):
-        sv["description"] = osi["description"]
+def convert(model: OssieSemanticModel) -> dict:
+    sv: dict = {"name": model.name}
+    if model.description:
+        sv["description"] = model.description
 
-    ai_ctx = osi.get("ai_context") or {}
-    if ai_ctx.get("instructions"):
-        sv["module_custom_instructions"] = {"sql_generation": ai_ctx["instructions"]}
+    if model.ai_context and model.ai_context.instructions:
+        sv["module_custom_instructions"] = {
+            "sql_generation": model.ai_context.instructions
+        }
 
-    datasets = osi.get("datasets") or []
-    dataset_names_lower = {d["name"].lower() for d in datasets}
+    dataset_names_lower = {ds.name.lower() for ds in model.datasets}
 
     # ── Build tables ────────────────────────────────────────────────────────
     tables: list[dict] = []
-    for ds in datasets:
-        table: dict = {"name": ds["name"]}
-        if ds.get("description"):
-            table["description"] = ds["description"]
+    for ds in model.datasets:
+        table: dict = {"name": ds.name}
+        if ds.description:
+            table["description"] = ds.description
 
         # source: "DB.SCH.TABLE"
-        parts = (ds.get("source") or "").split(".")
+        parts = ds.source.split(".")
         if len(parts) >= 3:
             table["base_table"] = {
                 "database": parts[0],
@@ -98,44 +120,37 @@ def convert(osi: dict) -> dict:
                 "table": parts[2],
             }
 
-        pk = ds.get("primary_key") or []
-        if pk:
-            table["primary_key"] = {"columns": list(pk)}
-
-        uks = ds.get("unique_keys") or []
-        if uks:
-            table["unique_keys"] = [{"columns": list(uk)} for uk in uks]
+        if ds.primary_key:
+            table["primary_key"] = {"columns": list(ds.primary_key)}
+        if ds.unique_keys:
+            table["unique_keys"] = [{"columns": list(uk)} for uk in ds.unique_keys]
 
         dims: list[dict] = []
         time_dims: list[dict] = []
         facts_list: list[dict] = []
 
-        for f in ds.get("fields") or []:
+        for f in ds.fields or []:
             expr = _sf_expr(f)
-            dtype = f.get("datatype", "String")
-            ai_f = f.get("ai_context") or {}
-            sf_ext = _snowflake_ext(f)
+            sf_ext = _sf_ext_data(f.custom_extensions)
             is_private = sf_ext.get("access_modifier") == "private_access"
-            is_time = (f.get("dimension") or {}).get("is_time", False)
-            is_numeric = dtype in _NUMERIC_TYPES
 
             entry: dict = {
-                "name": f["name"],
+                "name": f.name,
                 "expr": expr,
-                "data_type": _dtype(dtype),
+                "data_type": _dtype(f.datatype),
             }
-            if f.get("description"):
-                entry["description"] = f["description"]
-            if ai_f.get("synonyms"):
-                entry["synonyms"] = list(ai_f["synonyms"])
-            if ai_f.get("examples"):
-                entry["sample_values"] = list(ai_f["examples"])
+            if f.description:
+                entry["description"] = f.description
+            if f.ai_context and f.ai_context.synonyms:
+                entry["synonyms"] = list(f.ai_context.synonyms)
+            if f.ai_context and f.ai_context.examples:
+                entry["sample_values"] = list(f.ai_context.examples)
             if is_private:
                 entry["access_modifier"] = "private_access"
 
-            if is_time:
+            if f.is_time_dimension():
                 time_dims.append(entry)
-            elif is_numeric:
+            elif f.datatype in _NUMERIC_TYPES:
                 facts_list.append(entry)
             else:
                 dims.append(entry)
@@ -147,8 +162,8 @@ def convert(osi: dict) -> dict:
         if facts_list:
             table["facts"] = facts_list
 
-        # Filters from dataset custom_extensions
-        ds_sf = _snowflake_ext(ds)
+        # Filters from dataset SNOWFLAKE custom_extensions.
+        ds_sf = _sf_ext_data(ds.custom_extensions)
         if ds_sf.get("filters"):
             table["filters"] = ds_sf["filters"]
 
@@ -158,17 +173,17 @@ def convert(osi: dict) -> dict:
 
     # ── Build relationships ──────────────────────────────────────────────────
     rels: list[dict] = []
-    for r in osi.get("relationships") or []:
+    for r in model.relationships or []:
         rel: dict = {
-            "name": r["name"],
-            "left_table": r["from"],
-            "right_table": r["to"],
+            "name": r.name,
+            "left_table": r.from_dataset,
+            "right_table": r.to,
             "relationship_columns": [
                 {"left_column": lc, "right_column": rc}
-                for lc, rc in zip(r["from_columns"], r["to_columns"])
+                for lc, rc in zip(r.from_columns, r.to_columns)
             ],
         }
-        r_sf = _snowflake_ext(r)
+        r_sf = _sf_ext_data(r.custom_extensions)
         if r_sf.get("join_type"):
             rel["join_type"] = r_sf["join_type"]
         if r_sf.get("relationship_type"):
@@ -177,73 +192,49 @@ def convert(osi: dict) -> dict:
     sv["relationships"] = rels
 
     # ── Assign metrics to tables or root ─────────────────────────────────────
-    # 1. Load metric_datasets hint from root SNOWFLAKE custom_extensions.
-    # 2. Fall back to expression-based heuristic for unmapped metrics.
-    metric_dataset_hints: dict[str, str] = {}
-    for ext in osi.get("custom_extensions") or []:
-        if ext.get("vendor_name") == "SNOWFLAKE":
-            try:
-                data = json.loads(ext.get("data", "{}"))
-            except (json.JSONDecodeError, TypeError):
-                data = {}
-            metric_dataset_hints = data.get("metric_datasets", {})
-            break
+    # Use metric_datasets hints from root SNOWFLAKE custom_extensions.
+    # Metrics not in the hint map whose expressions contain "dataset_name."
+    # are treated as cross-table (root/derived); everything else also goes
+    # to root as a safe fallback.
+    root_sf = _sf_ext_data(model.custom_extensions)
+    metric_dataset_hints: dict[str, str] = root_sf.get("metric_datasets", {})
 
-    table_metrics: dict[str, list] = {d["name"]: [] for d in datasets}
+    table_metrics: dict[str, list] = {ds.name: [] for ds in model.datasets}
     root_metrics: list[dict] = []
 
-    for m in osi.get("metrics") or []:
+    for m in model.metrics or []:
         expr = _sf_expr(m)
         expr_lower = expr.lower()
-
-        m_sf = _snowflake_ext(m)
+        m_sf = _sf_ext_data(m.custom_extensions)
         is_private = m_sf.get("access_modifier") == "private_access"
 
-        entry: dict = {"name": m["name"], "expr": expr}
-        if m.get("description"):
-            entry["description"] = m["description"]
-        ai_m = m.get("ai_context") or {}
-        if ai_m.get("synonyms"):
-            entry["synonyms"] = list(ai_m["synonyms"])
+        entry: dict = {"name": m.name, "expr": expr}
+        if m.description:
+            entry["description"] = m.description
+        if m.ai_context and m.ai_context.synonyms:
+            entry["synonyms"] = list(m.ai_context.synonyms)
         if is_private:
             entry["access_modifier"] = "private_access"
 
-        # 1. Use explicit hint from metric_datasets map.
-        if m["name"] in metric_dataset_hints:
-            table_metrics[metric_dataset_hints[m["name"]]].append(entry)
+        # 1. Explicit hint from metric_datasets map.
+        if m.name in metric_dataset_hints:
+            table_metrics[metric_dataset_hints[m.name]].append(entry)
             continue
 
-        # 2. Cross-table check: does the expression mention "dataset_name."?
-        cross_table = any(
-            re.search(r"\b" + re.escape(dname) + r"\.", expr_lower)
-            for dname in dataset_names_lower
-        )
-        if cross_table:
-            root_metrics.append(entry)
-            continue
-
-        # 3. Fallback: assign to root (derived).
+        # 2. All non-hinted metrics (cross-table or unresolved) go to root.
         root_metrics.append(entry)
 
-    # Attach per-table metrics
+    # Attach per-table metrics.
     for table in tables:
-        tname = table["name"]
-        if table_metrics.get(tname):
-            table["metrics"] = table_metrics[tname]
+        if table_metrics.get(table["name"]):
+            table["metrics"] = table_metrics[table["name"]]
 
     if root_metrics:
         sv["metrics"] = root_metrics
 
-    # ── VQRs from root custom_extensions ────────────────────────────────────
-    for ext in osi.get("custom_extensions") or []:
-        if ext.get("vendor_name") == "SNOWFLAKE":
-            try:
-                data = json.loads(ext.get("data", "{}"))
-            except (json.JSONDecodeError, TypeError):
-                data = {}
-            if data.get("verified_queries"):
-                sv["verified_queries"] = data["verified_queries"]
-            break
+    # ── VQRs from root SNOWFLAKE custom_extensions ───────────────────────────
+    if root_sf.get("verified_queries"):
+        sv["verified_queries"] = root_sf["verified_queries"]
 
     return sv
 
@@ -280,22 +271,29 @@ def main() -> int:
         print(f"Usage: {sys.argv[0]} <osi_yaml_path> <sv_fqn> <schema_fqn>", file=sys.stderr)
         return 1
 
-    osi_path, _sv_fqn, schema = sys.argv[1], sys.argv[2], sys.argv[3]
+    osi_path, sv_fqn, schema = sys.argv[1], sys.argv[2], sys.argv[3]
 
     with open(osi_path) as f:
-        osi = yaml.safe_load(f)
+        raw = yaml.safe_load(f)
+
+    # Parse with apache-ossie for spec compliance validation.
+    from pydantic import ValidationError
+    try:
+        model = OssieSemanticModel.model_validate(raw)
+    except ValidationError as exc:
+        print(f"osi_to_sv ERROR: OSI spec validation failed:\n{exc}", file=sys.stderr)
+        return 1
 
     print(f"osi_to_sv: converting {osi_path} → Snowflake YAML + VQRs")
-    sv_yaml = convert(osi)
+    sv_yaml = convert(model)
 
-    # Count metrics for logging
     root_m = len(sv_yaml.get("metrics") or [])
     table_m = sum(len(t.get("metrics") or []) for t in sv_yaml.get("tables") or [])
     vqrs = len(sv_yaml.get("verified_queries") or [])
     print(f"osi_to_sv: {table_m} table metrics, {root_m} derived metrics, {vqrs} VQRs")
 
     deploy(sv_yaml, schema)
-    print(f"osi_to_sv: deployed {_sv_fqn} with {table_m + root_m} metrics + {vqrs} VQRs")
+    print(f"osi_to_sv: deployed {sv_fqn} with {table_m + root_m} metrics + {vqrs} VQRs")
     return 0
 
 

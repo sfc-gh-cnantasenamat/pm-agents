@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import pathlib
 import sys
 
@@ -17,6 +18,45 @@ BUILTIN_METRICS = {
     "tool_execution_accuracy",
 }
 ANALYST_METRICS = {"sql_correctness"}
+
+
+def _validate_osi(path: str, spec: dict, errors: list[str]) -> None:
+    """Validate an osi_semantic_view YAML using the apache-ossie Pydantic models."""
+    try:
+        from ossie import OssieSemanticModel
+        from pydantic import ValidationError
+    except ImportError:
+        # Auto-install apache-ossie if not present (CI may not have it yet).
+        import subprocess
+        subprocess.check_call([
+            sys.executable, "-m", "pip", "install", "-q",
+            "git+https://github.com/apache/ossie.git#subdirectory=python",
+        ])
+        from ossie import OssieSemanticModel
+        from pydantic import ValidationError
+
+    try:
+        model = OssieSemanticModel.model_validate(spec)
+    except ValidationError as exc:
+        for err in exc.errors():
+            loc = " → ".join(str(p) for p in err["loc"])
+            errors.append(f"{path}: ossie validation error at '{loc}': {err['msg']}")
+        return
+
+    # Warn if there are no VQRs in SNOWFLAKE custom_extensions (evals need them).
+    has_vqrs = False
+    for ext in model.custom_extensions or []:
+        if ext.vendor_name == "SNOWFLAKE":
+            try:
+                data = json.loads(ext.data)
+                has_vqrs = bool(data.get("verified_queries"))
+            except (json.JSONDecodeError, TypeError):
+                pass
+    if not has_vqrs:
+        errors.append(
+            f"{path}: no verified_queries found in SNOWFLAKE custom_extensions "
+            "(required for sql_correctness eval)"
+        )
 
 
 def main() -> int:
@@ -54,14 +94,12 @@ def main() -> int:
             errors.append(f"{path}: invalid YAML: {exc}")
             continue
 
-        if typ in ("semantic_view", "osi_semantic_view"):
+        if typ == "osi_semantic_view":
+            # Full schema validation via the apache-ossie Pydantic models.
+            _validate_osi(path, spec, errors)
+        elif typ == "semantic_view":
             if not isinstance(spec, dict) or not spec.get("name"):
-                errors.append(f"{path}: {typ} YAML must have a top-level 'name:'")
-            if typ == "osi_semantic_view":
-                if not spec.get("version"):
-                    errors.append(f"{path}: osi_semantic_view must have a top-level 'version:'")
-                if not spec.get("datasets"):
-                    errors.append(f"{path}: osi_semantic_view must have at least one dataset")
+                errors.append(f"{path}: semantic_view YAML must have a top-level 'name:'")
         elif typ == "cortex_agent":
             if not isinstance(spec, dict) or not spec:
                 warnings.append(f"{path}: agent spec is empty")
