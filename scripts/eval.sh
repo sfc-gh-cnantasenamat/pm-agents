@@ -162,9 +162,20 @@ scores = {}
 for row in rows or []:
     if isinstance(row, dict):
         name = row.get("METRIC_NAME") or row.get("metric_name")
-        val = row.get("AVG_SCORE") or row.get("avg_score")
+        val = row.get("AVG_SCORE")
+        if val is None:
+            val = row.get("avg_score")
         if name is not None and val is not None:
             scores[str(name).lower()] = float(val)
+
+if not scores:
+    print("ERROR: GET_AI_EVALUATION_DATA returned no records.", file=sys.stderr)
+    print("The eval COMPLETED but no metric scores were written — this usually means", file=sys.stderr)
+    print("PM_AGENTS_CI lacks OWNERSHIP on the GROWTH_AGENT_EVAL dataset.", file=sys.stderr)
+    print("Fix: re-run sql/setup.sql, specifically:", file=sys.stderr)
+    print("  GRANT OWNERSHIP ON DATASET PM_AGENTS_DEMO.APP.GROWTH_AGENT_EVAL", file=sys.stderr)
+    print("    TO ROLE PM_AGENTS_CI COPY CURRENT GRANTS;", file=sys.stderr)
+    raise SystemExit(1)
 
 failures = []
 for metric, floor in thresholds.items():
