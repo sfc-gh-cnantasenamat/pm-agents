@@ -36,34 +36,15 @@ echo "Run name: $RUN_NAME"
 echo "Semantic view: $SV_FQN"
 
 # ── Housekeeping: drop the system eval dataset when it has too many versions ──
-# EXECUTE_AI_EVALUATION writes results into an auto-managed dataset named
-# <SV>_SYSTEM_EVAL. After ~20+ accumulated versions the dataset enters a
-# bad state: the eval COMPLETES but writes no records, causing null scores.
-# Dropping it here lets Snowflake recreate it cleanly on the next run.
+# Drop the SV eval results dataset before every run.
+# GET_ANALYST_AI_EVALUATION_DATA returns null scores when the dataset has
+# more than 1 accumulated version — the stale-state bug triggers much earlier
+# than the original ~20 version estimate. Dropping it here forces a clean
+# recreation each run, which is the only reliable way to get valid scores.
 SV_EVAL_DS="${SV_DB}.${SV_SCHEMA}.${SV_NAME}_SYSTEM_EVAL"
-echo "Checking eval dataset version count: $SV_EVAL_DS"
-version_count="$(snow sql -q "
-SELECT ARRAY_SIZE(PARSE_JSON(versions)) AS cnt
-FROM (SHOW DATASETS LIKE '${SV_NAME}_SYSTEM_EVAL' IN SCHEMA ${SV_DB}.${SV_SCHEMA})
-WHERE name = '${SV_NAME}_SYSTEM_EVAL';
-" --warehouse "$WAREHOUSE" --format json 2>/dev/null | python3 -c "
-import json, sys
-try:
-    rows = json.loads(sys.stdin.read())
-    print(rows[0].get('CNT', rows[0].get('cnt', 0)) if rows else 0)
-except Exception:
-    print(0)
-" 2>/dev/null || echo 0)"
-# Strip any surrounding whitespace / non-digit chars that would break integer comparison.
-version_count="$(echo "${version_count}" | tr -cd '0-9' | head -c 6)"
-version_count="${version_count:-0}"
-
-echo "Eval dataset versions: ${version_count}"
-if (( version_count > 20 )); then
-  echo "Eval dataset has ${version_count} versions (>20) — dropping to prevent stale-state null scores."
-  snow sql -q "DROP DATASET IF EXISTS ${SV_EVAL_DS};" --warehouse "$WAREHOUSE" || true
-  echo "Eval dataset dropped; it will be recreated fresh by this run."
-fi
+echo "Dropping eval dataset to ensure a clean run: ${SV_EVAL_DS}"
+snow sql -q "DROP DATASET IF EXISTS ${SV_EVAL_DS};" --warehouse "$WAREHOUSE" || true
+echo "Eval dataset dropped — will be recreated fresh by EXECUTE_AI_EVALUATION."
 # ─────────────────────────────────────────────────────────────────────────────
 
 snow sql -q "USE SCHEMA ${SV_DB}.${SV_SCHEMA}; PUT file://${EVAL_DIR}/analyst_eval_config.yaml @${EVAL_STAGE} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;" --warehouse "$WAREHOUSE"
@@ -126,12 +107,6 @@ if [[ "$status" != "COMPLETED" ]]; then
   echo "ERROR: Cortex Analyst evaluation did not complete within timeout" >&2
   exit 1
 fi
-
-# Brief pause: results take a few seconds to be fully committed to the dataset
-# after EXECUTE_AI_EVALUATION returns COMPLETED. Without this, GET_ANALYST_AI_EVALUATION_DATA
-# can return null scores immediately after completion.
-echo "Waiting 20s for eval results to commit..."
-sleep 20
 
 scores_json="$(snow sql -q "
 SELECT METRIC_NAME, AVG(EVAL_AGG_SCORE) AS AVG_SCORE

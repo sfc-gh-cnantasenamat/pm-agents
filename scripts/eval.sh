@@ -121,10 +121,6 @@ if [[ "$status" != "COMPLETED" ]]; then
   exit 1
 fi
 
-# Brief pause: results take a few seconds to be fully committed after COMPLETED.
-echo "Waiting 20s for eval results to commit..."
-sleep 20
-
 scores_json="$(snow sql -q "
 SELECT METRIC_NAME, AVG(EVAL_AGG_SCORE) AS AVG_SCORE
 FROM TABLE(SNOWFLAKE.LOCAL.GET_AI_EVALUATION_DATA(
