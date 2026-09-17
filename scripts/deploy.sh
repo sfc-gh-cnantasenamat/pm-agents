@@ -141,56 +141,32 @@ while IFS=$'\t' read -r path typ obj; do
       db_schema="${obj%.*}"
       stage="@${db_schema}.EVAL_CONFIG_STAGE"
       abs_file="$(realpath "$file")"
-      stage_path="${stage}/${path}"
 
-      echo "    Staging $path to $stage (for osi_write_model reference)"
+      # Stage the OSI YAML for reference and downstream inspection.
+      echo "    Staging $path to $stage"
       if [[ "$DRY_RUN" == "true" ]]; then
         echo "    (DRY_RUN) PUT file://${abs_file} ${stage} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;"
-      else
-        if ! snow sql -q "PUT file://${abs_file} ${stage} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;" --warehouse "$WAREHOUSE"; then
-          echo "    FAILED to stage OSI file"
-          FAILED+=("$path -> $obj (PUT failed)")
-          continue
-        fi
-      fi
-
-      # Convert OSI → Snowflake native YAML with all metrics + VQRs.
-      # This is the authoritative deployment step; osi_write_model below is
-      # informational only (shows Snowflake can read the OSI format natively).
-      echo "    Converting OSI → native YAML with all metrics + VQRs"
-      if [[ "$DRY_RUN" == "true" ]]; then
-        echo "    (DRY_RUN) python3 scripts/osi_to_sv.py $file $obj $db_schema"
+        echo "    (DRY_RUN) osi_to_sv.py $file $obj $db_schema"
         SUCCEEDED+=("$path -> $obj")
         continue
       fi
 
-      if python3 scripts/osi_to_sv.py "$file" "$obj" "$db_schema"; then
-        echo "    OSI conversion OK"
-      else
-        echo "    FAILED to deploy OSI SV"
-        FAILED+=("$path -> $obj")
+      if ! snow sql -q "PUT file://${abs_file} ${stage} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;" --warehouse "$WAREHOUSE"; then
+        echo "    FAILED to stage OSI file"
+        FAILED+=("$path -> $obj (PUT failed)")
         continue
       fi
 
-      # Also call osi_write_model as a demonstration that Snowflake natively
-      # reads OSI format (ignoring failures — conversion above is canonical).
-      sva_payload="{\"tool\":\"osi_write_model\",\"parameters\":{\"file_path\":\"${stage_path}\",\"target_db_schema\":\"${db_schema}\",\"warehouse\":\"${WAREHOUSE}\"}}"
-      sql="SELECT SYSTEM\$CORTEX_ANALYST_SVA_TOOL(\$\$${sva_payload}\$\$);"
-      echo "    Running osi_write_model (informational — native OSI support demo)"
-      if run_sql "$sql"; then
-        echo "    osi_write_model OK (Snowflake read OSI natively)"
-        # Restore the full-metrics native SV so evals have all 45 metrics.
-        echo "    Re-applying full native SV (restoring all metrics + VQRs)"
-        if python3 scripts/osi_to_sv.py "$file" "$obj" "$db_schema"; then
-          echo "    Full SV restored"
-        else
-          echo "    WARNING: Could not restore full SV after osi_write_model"
-        fi
+      # Convert OSI YAML → Snowflake native YAML with all metrics + VQRs,
+      # then deploy via SYSTEM$CREATE_SEMANTIC_VIEW_FROM_YAML.
+      echo "    Converting OSI → native YAML (45 metrics + VQRs) and deploying"
+      if python3 scripts/osi_to_sv.py "$file" "$obj" "$db_schema"; then
+        echo "    OK"
+        SUCCEEDED+=("$path -> $obj")
       else
-        echo "    osi_write_model not available (acceptable — using native YAML deploy)"
+        echo "    FAILED"
+        FAILED+=("$path -> $obj")
       fi
-
-      SUCCEEDED+=("$path -> $obj")
       ;;
     cortex_agent)
       db_schema="${obj%.*}"
