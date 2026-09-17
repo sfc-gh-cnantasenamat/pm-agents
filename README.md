@@ -64,7 +64,7 @@ A change to the semantic view or the agent does not go live until two quality ch
                        | Cortex Analyst asks the verified         |
                        | questions. Compare generated SQL         |
                        | results to the expected SQL.             |
-                       | Pass if sql_correctness >= 0.70          |
+                       | Pass if sql_correctness >= 0.35          |
                        +------------------------------------------+
                        +------------------+-----------------------+
                                           |
@@ -131,7 +131,7 @@ Metrics in CI:
 - Semantic view (Cortex Analyst): `sql_correctness` (v3_0) against eight verified queries
 - Agent: `answer_correctness`, `logical_consistency`, `tool_selection_accuracy` (v3_0)
 
-Default floors are 0.70. Recalibrate after your first successful baseline.
+Default floors: `sql_correctness` 0.35 (SV), `answer_correctness` / `logical_consistency` / `tool_selection_accuracy` 0.70 each (agent). Recalibrate in `evals/thresholds.yaml` after your first baseline.
 
 ## Prerequisites
 
@@ -182,7 +182,7 @@ Git is the contract. Edit the same files:
 
 | File | What it is |
 |---|---|
-| `cortex_project/GROWTH_ANALYTICS_SV.sv.yaml` | Semantic view |
+| `cortex_project/GROWTH_ANALYTICS_SV.osi.yaml` | Semantic view (OSI format, validated by Apache Ossie) |
 | `cortex_project/GROWTH_AGENT.agent.yaml` | Agent spec |
 | `cortex_project/growth_analytics_sv.eval.yaml` | Analyst eval: `sql_correctness` vs VQRs |
 | `cortex_project/growth_agent_eval.eval.yaml` | Agent eval pointer (CI builds the resolved config) |
@@ -270,13 +270,15 @@ After the first agent exists, confirm the role can `MONITOR` / `USAGE` it. Setup
 ```
 .github/workflows/deploy.yml   validate → candidate → eval_sv → eval → promote
 .snowflake/config.toml         Snowflake CLI connection for Actions
-cortex_project/                SV, agent, Analyst + agent eval YAML + manifest
+cortex_project/                GROWTH_ANALYTICS_SV.osi.yaml, GROWTH_AGENT.agent.yaml, eval configs, manifest
 evals/thresholds.yaml          SV then agent promotion floors
+requirements.txt               Python dependencies (pyyaml, apache-ossie)
 scripts/deploy.sh              versioned deploy
 scripts/eval_sv.sh             Cortex Analyst sql_correctness gate
 scripts/eval.sh                Cortex Agent eval gate
+scripts/osi_to_sv.py           OSI → Snowflake YAML converter (called by deploy.sh)
 scripts/promote.sh             DEFAULT_VERSION / production alias
-scripts/validate.py            PR lint
+scripts/validate.py            PR lint (Apache Ossie spec check + VQR presence)
 sql/setup.sql                  demo objects + seed data
 ```
 
