@@ -13,7 +13,12 @@ st.set_page_config(layout="wide", page_title="Growth Analytics")
 session = ctx.get_active_session()
 
 st.title("Growth Analytics Dashboard")
-st.badge("PM_AGENTS_DEMO.APP", color="blue")
+st.markdown(
+    "<span style='background:#1a6cb5;color:#fff;padding:2px 10px;"
+    "border-radius:12px;font-size:0.8rem;font-weight:600;letter-spacing:0.03em'>"
+    "PM_AGENTS_DEMO.APP</span>",
+    unsafe_allow_html=True,
+)
 st.caption("Live data — refreshed every time the CI pipeline deploys.")
 
 # ── KPI cards ──────────────────────────────────────────────────────────────
