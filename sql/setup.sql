@@ -349,7 +349,9 @@ EXECUTE AS OWNER
 AS
 $$
 BEGIN
-  -- Drop SV eval results dataset so EXECUTE_AI_EVALUATION recreates it clean.
+  -- Drop both the internal eval tracking object and the results dataset
+  -- so EXECUTE_AI_EVALUATION recreates them clean each run.
+  DROP DATASET IF EXISTS SV_EVAL_CICD.APP.SYSTEM_AI_OBS_ANALYST_EVAL_GROWTH_ANALYTICS_SV;
   DROP DATASET IF EXISTS SV_EVAL_CICD.APP.GROWTH_ANALYTICS_SV_SYSTEM_EVAL;
   RETURN 'Eval datasets reset complete';
 END;
