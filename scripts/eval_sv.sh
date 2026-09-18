@@ -4,7 +4,7 @@
 # Run after deploy.sh and before scripts/eval.sh (agent evals).
 #
 # Environment:
-#   SV_FQN          default SV_EVAL_CICD.APP.GROWTH_ANALYTICS_SV
+#   SV_FQN          default SV_EVAL_CICD.APP.GROWTH_ANALYTICS
 #   EVAL_STAGE      default SV_EVAL_CICD.APP.EVAL_CONFIG_STAGE
 #   WAREHOUSE       default COMPUTE_WH
 #   RUN_NAME        default GROWTH_SV_EVAL_<timestamp>
@@ -13,7 +13,7 @@
 
 set -uo pipefail
 
-SV_FQN="${SV_FQN:-SV_EVAL_CICD.APP.GROWTH_ANALYTICS_SV}"
+SV_FQN="${SV_FQN:-SV_EVAL_CICD.APP.GROWTH_ANALYTICS}"
 EVAL_STAGE="${EVAL_STAGE:-SV_EVAL_CICD.APP.EVAL_CONFIG_STAGE}"
 WAREHOUSE="${WAREHOUSE:-COMPUTE_WH}"
 RUN_NAME="${RUN_NAME:-GROWTH_SV_EVAL_$(date -u +%Y%m%d_%H%M%S)}"

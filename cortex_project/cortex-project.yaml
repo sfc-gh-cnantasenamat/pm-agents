@@ -1,10 +1,10 @@
 version: 1
 artifacts:
-  - path: GROWTH_ANALYTICS_SV.osi.yaml
+  - path: GROWTH_ANALYTICS.osi.yaml
     type: osi_semantic_view
     targets:
       default:
-        object: SV_EVAL_CICD.APP.GROWTH_ANALYTICS_SV
+        object: SV_EVAL_CICD.APP.GROWTH_ANALYTICS
   - path: GROWTH_AGENT.agent.yaml
     type: cortex_agent
     targets:
@@ -14,7 +14,7 @@ artifacts:
     type: cortex_analyst_eval
     targets:
       default:
-        object: SV_EVAL_CICD.APP.GROWTH_ANALYTICS_SV
+        object: SV_EVAL_CICD.APP.GROWTH_ANALYTICS
   - path: growth_agent_eval.eval.yaml
     type: cortex_eval
     targets:

@@ -1,7 +1,7 @@
 """
 Growth Analytics Dashboard
 Streamlit-in-Snowflake app deployed by the CI/CD pipeline alongside
-GROWTH_ANALYTICS_SV and GROWTH_AGENT. Queries the demo tables directly.
+GROWTH_ANALYTICS and GROWTH_AGENT. Queries the demo tables directly.
 """
 
 import streamlit as st

@@ -1,5 +1,5 @@
 version: 0.2.0.dev0
-name: GROWTH_ANALYTICS_SV
+name: GROWTH_ANALYTICS
 description: >-
   Growth analytics for user acquisition, retention, and attribution. Supports
   BI dashboards and conversational analytics. Covers signups, marketing
