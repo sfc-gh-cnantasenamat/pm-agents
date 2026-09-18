@@ -19,18 +19,23 @@ st.caption("Live data from PM_AGENTS_DEMO.APP — refreshed every time the CI pi
 kpis = session.sql("""
     SELECT
         COUNT(*)                                                        AS TOTAL_SIGNUPS,
+        SUM(CASE WHEN CONVERTED_TO_PAID THEN 1 ELSE 0 END)             AS PAID_CUSTOMERS,
         ROUND(
             SUM(CASE WHEN CONVERTED_TO_PAID THEN 1 ELSE 0 END)
             * 100.0 / NULLIF(COUNT(*), 0), 1)                          AS CONVERSION_RATE,
         ROUND(SUM(CASE WHEN CONVERTED_TO_PAID THEN MRR_AMOUNT
-                       ELSE 0 END), 2)                                 AS TOTAL_MRR
+                       ELSE 0 END), 2)                                 AS TOTAL_MRR,
+        ROUND(AVG(CASE WHEN CONVERTED_TO_PAID THEN MRR_AMOUNT
+                       END), 2)                                        AS AVG_MRR
     FROM PM_AGENTS_DEMO.APP.SIGNUPS
 """).to_pandas()
 
-kc1, kc2, kc3 = st.columns(3)
-kc1.metric("Total Signups",   int(kpis["TOTAL_SIGNUPS"][0]))
-kc2.metric("Conversion Rate", f'{kpis["CONVERSION_RATE"][0]}%')
-kc3.metric("Total MRR",       f'${kpis["TOTAL_MRR"][0]:,.0f}')
+kc1, kc2, kc3, kc4, kc5 = st.columns(5)
+kc1.metric("Total Signups",    int(kpis["TOTAL_SIGNUPS"][0]))
+kc2.metric("Paid Customers",   int(kpis["PAID_CUSTOMERS"][0]))
+kc3.metric("Conversion Rate",  f'{kpis["CONVERSION_RATE"][0]}%')
+kc4.metric("Total MRR",        f'${kpis["TOTAL_MRR"][0]:,.0f}')
+kc5.metric("Avg MRR / Customer", f'${kpis["AVG_MRR"][0]:,.0f}')
 
 st.divider()
 
