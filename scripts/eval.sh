@@ -5,9 +5,9 @@
 # evals/thresholds.yaml.
 #
 # Environment:
-#   AGENT_FQN       default PM_AGENTS_DEMO.APP.GROWTH_AGENT
-#   DATASET_FQN     default PM_AGENTS_DEMO.APP.GROWTH_AGENT_EVAL
-#   EVAL_STAGE      default PM_AGENTS_DEMO.APP.EVAL_CONFIG_STAGE
+#   AGENT_FQN       default SV_EVAL_CICD.APP.GROWTH_AGENT
+#   DATASET_FQN     default SV_EVAL_CICD.APP.GROWTH_AGENT_EVAL
+#   EVAL_STAGE      default SV_EVAL_CICD.APP.EVAL_CONFIG_STAGE
 #   WAREHOUSE       default COMPUTE_WH
 #   RUN_NAME        default GROWTH_AGENT_EVAL_<timestamp>
 #   POLL_SECONDS    default 30
@@ -15,9 +15,9 @@
 
 set -uo pipefail
 
-AGENT_FQN="${AGENT_FQN:-PM_AGENTS_DEMO.APP.GROWTH_AGENT}"
-DATASET_FQN="${DATASET_FQN:-PM_AGENTS_DEMO.APP.GROWTH_AGENT_EVAL}"
-EVAL_STAGE="${EVAL_STAGE:-PM_AGENTS_DEMO.APP.EVAL_CONFIG_STAGE}"
+AGENT_FQN="${AGENT_FQN:-SV_EVAL_CICD.APP.GROWTH_AGENT}"
+DATASET_FQN="${DATASET_FQN:-SV_EVAL_CICD.APP.GROWTH_AGENT_EVAL}"
+EVAL_STAGE="${EVAL_STAGE:-SV_EVAL_CICD.APP.EVAL_CONFIG_STAGE}"
 WAREHOUSE="${WAREHOUSE:-COMPUTE_WH}"
 RUN_NAME="${RUN_NAME:-GROWTH_AGENT_EVAL_$(date -u +%Y%m%d_%H%M%S)}"
 POLL_SECONDS="${POLL_SECONDS:-30}"
@@ -171,10 +171,10 @@ for row in rows or []:
 if not scores:
     print("ERROR: GET_AI_EVALUATION_DATA returned no records.", file=sys.stderr)
     print("The eval COMPLETED but no metric scores were written — this usually means", file=sys.stderr)
-    print("PM_AGENTS_CI lacks OWNERSHIP on the GROWTH_AGENT_EVAL dataset.", file=sys.stderr)
+    print("SV_EVAL_CICD_ROLE lacks OWNERSHIP on the GROWTH_AGENT_EVAL dataset.", file=sys.stderr)
     print("Fix: re-run sql/setup.sql, specifically:", file=sys.stderr)
-    print("  GRANT OWNERSHIP ON DATASET PM_AGENTS_DEMO.APP.GROWTH_AGENT_EVAL", file=sys.stderr)
-    print("    TO ROLE PM_AGENTS_CI COPY CURRENT GRANTS;", file=sys.stderr)
+    print("  GRANT OWNERSHIP ON DATASET SV_EVAL_CICD.APP.GROWTH_AGENT_EVAL", file=sys.stderr)
+    print("    TO ROLE SV_EVAL_CICD_ROLE COPY CURRENT GRANTS;", file=sys.stderr)
     raise SystemExit(1)
 
 failures = []

@@ -4,8 +4,8 @@
 # Run after deploy.sh and before scripts/eval.sh (agent evals).
 #
 # Environment:
-#   SV_FQN          default PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV
-#   EVAL_STAGE      default PM_AGENTS_DEMO.APP.EVAL_CONFIG_STAGE
+#   SV_FQN          default SV_EVAL_CICD.APP.GROWTH_ANALYTICS_SV
+#   EVAL_STAGE      default SV_EVAL_CICD.APP.EVAL_CONFIG_STAGE
 #   WAREHOUSE       default COMPUTE_WH
 #   RUN_NAME        default GROWTH_SV_EVAL_<timestamp>
 #   POLL_SECONDS    default 30
@@ -13,8 +13,8 @@
 
 set -uo pipefail
 
-SV_FQN="${SV_FQN:-PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV}"
-EVAL_STAGE="${EVAL_STAGE:-PM_AGENTS_DEMO.APP.EVAL_CONFIG_STAGE}"
+SV_FQN="${SV_FQN:-SV_EVAL_CICD.APP.GROWTH_ANALYTICS_SV}"
+EVAL_STAGE="${EVAL_STAGE:-SV_EVAL_CICD.APP.EVAL_CONFIG_STAGE}"
 WAREHOUSE="${WAREHOUSE:-COMPUTE_WH}"
 RUN_NAME="${RUN_NAME:-GROWTH_SV_EVAL_$(date -u +%Y%m%d_%H%M%S)}"
 POLL_SECONDS="${POLL_SECONDS:-30}"
@@ -39,10 +39,10 @@ echo "Semantic view: $SV_FQN"
 # Reset eval datasets via the OWNER'S RIGHTS stored procedure.
 # Only an ACCOUNTADMIN-initiated drop fully clears the internal state that
 # GET_ANALYST/AI_EVALUATION_DATA reads from. Calling the SP here lets
-# PM_AGENTS_CI trigger a clean reset without needing ACCOUNTADMIN credentials.
+# SV_EVAL_CICD_ROLE trigger a clean reset without needing ACCOUNTADMIN credentials.
 SV_EVAL_DS="${SV_DB}.${SV_SCHEMA}.${SV_NAME}_SYSTEM_EVAL"
 echo "Resetting eval datasets via SP_RESET_EVAL_DATASETS..."
-snow sql -q "CALL PM_AGENTS_DEMO.APP.SP_RESET_EVAL_DATASETS();" \
+snow sql -q "CALL SV_EVAL_CICD.APP.SP_RESET_EVAL_DATASETS();" \
   --warehouse "$WAREHOUSE" 2>&1 || {
   echo "WARNING: SP_RESET_EVAL_DATASETS failed; falling back to direct drop of ${SV_EVAL_DS}"
   snow sql -q "DROP DATASET IF EXISTS ${SV_EVAL_DS};" --warehouse "$WAREHOUSE" || true

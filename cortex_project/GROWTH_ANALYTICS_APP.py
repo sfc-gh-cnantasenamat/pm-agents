@@ -13,7 +13,7 @@ st.set_page_config(layout="wide", page_title="Growth Analytics")
 session = ctx.get_active_session()
 
 st.title("Growth Analytics Dashboard")
-st.caption("Live data from PM_AGENTS_DEMO.APP — refreshed every time the CI/CD pipeline deploys.")
+st.caption("Live data from SV_EVAL_CICD.APP — refreshed every time the CI/CD pipeline deploys.")
 
 # ── KPI cards ──────────────────────────────────────────────────────────────
 kpis = session.sql("""
@@ -27,7 +27,7 @@ kpis = session.sql("""
                        ELSE 0 END), 2)                                 AS TOTAL_MRR,
         ROUND(AVG(CASE WHEN CONVERTED_TO_PAID THEN MRR_AMOUNT
                        END), 2)                                        AS AVG_MRR
-    FROM PM_AGENTS_DEMO.APP.SIGNUPS
+    FROM SV_EVAL_CICD.APP.SIGNUPS
 """).to_pandas()
 
 kc1, kc2, kc3, kc4, kc5 = st.columns(5)
@@ -46,7 +46,7 @@ with c1:
     st.subheader("Signups by Channel")
     df_bar = session.sql("""
         SELECT SIGNUP_CHANNEL, COUNT(*) AS SIGNUPS
-        FROM PM_AGENTS_DEMO.APP.SIGNUPS
+        FROM SV_EVAL_CICD.APP.SIGNUPS
         GROUP BY 1 ORDER BY 2 DESC
     """).to_pandas()
     st.bar_chart(df_bar.set_index("SIGNUP_CHANNEL"), use_container_width=True, height=400)
@@ -55,7 +55,7 @@ with c2:
     st.subheader("Revenue by Plan Type")
     df_pie = session.sql("""
         SELECT PLAN_TYPE, ROUND(SUM(MRR_AMOUNT), 2) AS REVENUE
-        FROM PM_AGENTS_DEMO.APP.SIGNUPS
+        FROM SV_EVAL_CICD.APP.SIGNUPS
         WHERE CONVERTED_TO_PAID AND MRR_AMOUNT > 0
         GROUP BY 1
     """).to_pandas()
@@ -81,7 +81,7 @@ with c3:
             TO_CHAR(DATE_TRUNC('month', SIGNUP_DATE), 'YYYY-MM') AS MONTH,
             SIGNUP_CHANNEL AS CHANNEL,
             COUNT(*) AS SIGNUPS
-        FROM PM_AGENTS_DEMO.APP.SIGNUPS
+        FROM SV_EVAL_CICD.APP.SIGNUPS
         GROUP BY 1, 2
         ORDER BY 1, 2
     """).to_pandas()
