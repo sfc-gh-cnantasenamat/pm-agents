@@ -75,7 +75,46 @@ INSERT INTO SIGNUPS VALUES
   ('s-012', 'leo@example.com',   DATE '2025-03-11', 'referral',        'France',        'mobile',  'starter',      TRUE,  19.00, 'partner-acme'),
   ('s-013', 'mia@example.com',   DATE '2025-03-16', 'direct',          'United States', 'desktop', 'professional', TRUE,  49.00, NULL),
   ('s-014', 'noah@example.com',  DATE '2025-03-21', 'paid_search',     'United Kingdom','tablet',  'free',         FALSE,  0.00, NULL),
-  ('s-015', 'olga@example.com',  DATE '2025-03-27', 'email_marketing', 'Germany',       'desktop', 'starter',      TRUE,  19.00, NULL);
+  ('s-015', 'olga@example.com',  DATE '2025-03-27', 'email_marketing', 'Germany',       'desktop', 'starter',      TRUE,  19.00, NULL),
+  -- Apr 2025: 4 signups (slight uptick)
+  ('s-016', 'paul@example.com',  DATE '2025-04-03', 'organic_search',  'United States', 'desktop', 'professional', TRUE,  49.00, NULL),
+  ('s-017', 'quinn@example.com', DATE '2025-04-11', 'paid_search',     'Canada',        'mobile',  'starter',      TRUE,  19.00, NULL),
+  ('s-018', 'rosa@example.com',  DATE '2025-04-18', 'social_media',    'Germany',       'desktop', 'free',         FALSE,  0.00, NULL),
+  ('s-019', 'sam@example.com',   DATE '2025-04-25', 'organic_search',  'United States', 'tablet',  'enterprise',   TRUE, 199.00, NULL),
+  -- May 2025: 3 signups (dip)
+  ('s-020', 'tara@example.com',  DATE '2025-05-07', 'paid_search',     'United Kingdom','desktop', 'professional', TRUE,  49.00, NULL),
+  ('s-021', 'ursa@example.com',  DATE '2025-05-15', 'direct',          'Australia',     'mobile',  'free',         FALSE,  0.00, NULL),
+  ('s-022', 'vera@example.com',  DATE '2025-05-22', 'email_marketing', 'United States', 'desktop', 'starter',      TRUE,  19.00, NULL),
+  -- Jun 2025: 9 signups (strong growth)
+  ('s-023', 'will@example.com',  DATE '2025-06-02', 'organic_search',  'United States', 'desktop', 'professional', TRUE,  49.00, NULL),
+  ('s-024', 'xena@example.com',  DATE '2025-06-05', 'paid_search',     'Canada',        'mobile',  'enterprise',   TRUE, 199.00, NULL),
+  ('s-025', 'yuki@example.com',  DATE '2025-06-09', 'social_media',    'Japan',         'desktop', 'starter',      TRUE,  19.00, NULL),
+  ('s-026', 'zara@example.com',  DATE '2025-06-12', 'referral',        'United States', 'mobile',  'free',         FALSE,  0.00, 'partner-acme'),
+  ('s-027', 'adam@example.com',  DATE '2025-06-16', 'organic_search',  'Germany',       'desktop', 'professional', TRUE,  49.00, NULL),
+  ('s-028', 'beth@example.com',  DATE '2025-06-20', 'paid_search',     'United States', 'tablet',  'starter',      TRUE,  19.00, NULL),
+  ('s-029', 'carl@example.com',  DATE '2025-06-24', 'social_media',    'France',        'mobile',  'free',         FALSE,  0.00, NULL),
+  ('s-030', 'dana@example.com',  DATE '2025-06-27', 'email_marketing', 'United Kingdom','desktop', 'enterprise',   TRUE, 199.00, NULL),
+  ('s-031', 'evan@example.com',  DATE '2025-06-30', 'direct',          'Australia',     'mobile',  'professional', TRUE,  49.00, NULL),
+  -- Jul 2025: 6 signups
+  ('s-032', 'faye@example.com',  DATE '2025-07-04', 'organic_search',  'United States', 'desktop', 'starter',      TRUE,  19.00, NULL),
+  ('s-033', 'gene@example.com',  DATE '2025-07-10', 'paid_search',     'Canada',        'mobile',  'professional', TRUE,  49.00, NULL),
+  ('s-034', 'hana@example.com',  DATE '2025-07-15', 'referral',        'Japan',         'desktop', 'free',         FALSE,  0.00, 'partner-beta'),
+  ('s-035', 'ivan@example.com',  DATE '2025-07-19', 'social_media',    'Germany',       'tablet',  'starter',      TRUE,  19.00, NULL),
+  ('s-036', 'jana@example.com',  DATE '2025-07-24', 'organic_search',  'United States', 'desktop', 'enterprise',   TRUE, 199.00, NULL),
+  ('s-037', 'karl@example.com',  DATE '2025-07-29', 'direct',          'United Kingdom','mobile',  'professional', TRUE,  49.00, NULL),
+  -- Aug 2025: 12 signups (new high)
+  ('s-038', 'lena@example.com',  DATE '2025-08-02', 'paid_search',     'United States', 'desktop', 'starter',      TRUE,  19.00, NULL),
+  ('s-039', 'mike@example.com',  DATE '2025-08-05', 'organic_search',  'Canada',        'mobile',  'professional', TRUE,  49.00, NULL),
+  ('s-040', 'nora@example.com',  DATE '2025-08-07', 'social_media',    'France',        'desktop', 'free',         FALSE,  0.00, NULL),
+  ('s-041', 'otto@example.com',  DATE '2025-08-09', 'paid_search',     'Australia',     'mobile',  'enterprise',   TRUE, 199.00, NULL),
+  ('s-042', 'pia@example.com',   DATE '2025-08-12', 'email_marketing', 'Germany',       'desktop', 'starter',      TRUE,  19.00, NULL),
+  ('s-043', 'remy@example.com',  DATE '2025-08-14', 'organic_search',  'United States', 'tablet',  'professional', TRUE,  49.00, NULL),
+  ('s-044', 'suki@example.com',  DATE '2025-08-17', 'referral',        'Japan',         'mobile',  'free',         FALSE,  0.00, 'partner-acme'),
+  ('s-045', 'theo@example.com',  DATE '2025-08-20', 'direct',          'United States', 'desktop', 'enterprise',   TRUE, 199.00, NULL),
+  ('s-046', 'uma@example.com',   DATE '2025-08-22', 'paid_search',     'United Kingdom','mobile',  'starter',      TRUE,  19.00, NULL),
+  ('s-047', 'vince@example.com', DATE '2025-08-25', 'organic_search',  'Canada',        'desktop', 'professional', TRUE,  49.00, NULL),
+  ('s-048', 'wade@example.com',  DATE '2025-08-27', 'social_media',    'United States', 'mobile',  'free',         FALSE,  0.00, NULL),
+  ('s-049', 'xiao@example.com',  DATE '2025-08-30', 'paid_search',     'Germany',       'desktop', 'enterprise',   TRUE, 199.00, NULL);
 
 CREATE OR REPLACE TABLE TOUCHPOINTS (
   TOUCHPOINT_ID VARCHAR(36),
