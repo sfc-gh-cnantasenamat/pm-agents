@@ -18,12 +18,12 @@ st.caption("Live data from PM_AGENTS_DEMO.APP — refreshed every time the CI pi
 # ── KPI cards ──────────────────────────────────────────────────────────────
 kpis = session.sql("""
     SELECT
-        COUNT(*)                                                        AS total_signups,
+        COUNT(*)                                                        AS TOTAL_SIGNUPS,
         ROUND(
-            SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END)
-            * 100.0 / NULLIF(COUNT(*), 0), 1)                          AS conversion_rate,
-        ROUND(SUM(CASE WHEN converted_to_paid THEN mrr_amount
-                       ELSE 0 END), 2)                                 AS total_mrr
+            SUM(CASE WHEN CONVERTED_TO_PAID THEN 1 ELSE 0 END)
+            * 100.0 / NULLIF(COUNT(*), 0), 1)                          AS CONVERSION_RATE,
+        ROUND(SUM(CASE WHEN CONVERTED_TO_PAID THEN MRR_AMOUNT
+                       ELSE 0 END), 2)                                 AS TOTAL_MRR
     FROM PM_AGENTS_DEMO.APP.SIGNUPS
 """).to_pandas()
 
@@ -34,119 +34,72 @@ kc3.metric("Total MRR",       f'${kpis["TOTAL_MRR"][0]:,.0f}')
 
 st.divider()
 
-# ── Row 1: three charts side by side ───────────────────────────────────────
-r1c1, r1c2, r1c3 = st.columns(3)
+# ── Row 1: Bar chart (left) + Pie chart (right) ────────────────────────────
+r1c1, r1c2 = st.columns(2)
 
 with r1c1:
     st.subheader("Signups by Channel")
-    df_ch = session.sql("""
-        SELECT signup_channel AS channel, COUNT(*) AS signups
+    df_bar = session.sql("""
+        SELECT SIGNUP_CHANNEL, COUNT(*) AS SIGNUPS
         FROM PM_AGENTS_DEMO.APP.SIGNUPS
         GROUP BY 1 ORDER BY 2 DESC
     """).to_pandas()
-    st.bar_chart(df_ch.set_index("CHANNEL"), use_container_width=True)
+    st.bar_chart(df_bar.set_index("SIGNUP_CHANNEL"), use_container_width=True)
 
 with r1c2:
     st.subheader("Revenue by Plan Type")
-    df_rev = session.sql("""
-        SELECT plan_type, ROUND(SUM(mrr_amount), 2) AS revenue
-        FROM PM_AGENTS_DEMO.APP.SIGNUPS
-        WHERE converted_to_paid
-        GROUP BY 1 ORDER BY 2 DESC
-    """).to_pandas()
-    st.bar_chart(df_rev.set_index("PLAN_TYPE"), use_container_width=True)
-
-with r1c3:
-    st.subheader("Plan Mix (% of MRR)")
     df_pie = session.sql("""
-        SELECT plan_type, ROUND(SUM(mrr_amount), 2) AS revenue
+        SELECT PLAN_TYPE, ROUND(SUM(MRR_AMOUNT), 2) AS REVENUE
         FROM PM_AGENTS_DEMO.APP.SIGNUPS
-        WHERE converted_to_paid AND mrr_amount > 0
+        WHERE CONVERTED_TO_PAID AND MRR_AMOUNT > 0
         GROUP BY 1
     """).to_pandas()
     pie = (
         alt.Chart(df_pie)
-        .mark_arc(innerRadius=40)
+        .mark_arc(innerRadius=50)
         .encode(
-            theta=alt.Theta("revenue:Q"),
+            theta=alt.Theta("REVENUE:Q"),
             color=alt.Color("PLAN_TYPE:N", legend=alt.Legend(title="Plan")),
-            tooltip=["PLAN_TYPE:N", alt.Tooltip("revenue:Q", format="$,.0f")],
+            tooltip=[
+                alt.Tooltip("PLAN_TYPE:N", title="Plan"),
+                alt.Tooltip("REVENUE:Q", title="Revenue", format="$,.0f"),
+            ],
         )
+        .properties(height=300)
     )
     st.altair_chart(pie, use_container_width=True)
 
 st.divider()
 
-# ── Row 2: monthly trend (wider) + conversion by channel (narrower) ────────
-r2c1, r2c2 = st.columns([2, 1])
-
-with r2c1:
-    st.subheader("Monthly Signup Trend")
-    df_trend = session.sql("""
-        SELECT
-            TO_CHAR(DATE_TRUNC('month', signup_date), 'YYYY-MM') AS month,
-            COUNT(*) AS signups
-        FROM PM_AGENTS_DEMO.APP.SIGNUPS
-        GROUP BY 1 ORDER BY 1
-    """).to_pandas()
-    trend_chart = (
-        alt.Chart(df_trend)
-        .mark_line(point=True)
-        .encode(
-            x=alt.X("month:O", title="Month", axis=alt.Axis(labelAngle=-45)),
-            y=alt.Y("signups:Q", title="Signups"),
-            tooltip=["month:O", "signups:Q"],
-        )
-    )
-    st.altair_chart(trend_chart, use_container_width=True)
-
-with r2c2:
-    st.subheader("Conversion by Channel")
-    df_conv = session.sql("""
-        SELECT
-            signup_channel AS channel,
-            ROUND(SUM(CASE WHEN converted_to_paid THEN 1 ELSE 0 END)
-                  * 100.0 / NULLIF(COUNT(*), 0), 1) AS conv_rate
-        FROM PM_AGENTS_DEMO.APP.SIGNUPS
-        GROUP BY 1 ORDER BY 2 DESC
-    """).to_pandas()
-    conv_chart = (
-        alt.Chart(df_conv)
-        .mark_bar()
-        .encode(
-            x=alt.X("conv_rate:Q", title="Conversion %"),
-            y=alt.Y("CHANNEL:N", sort="-x", title=None),
-            tooltip=["CHANNEL:N", alt.Tooltip("conv_rate:Q", format=".1f", title="Conv %")],
-        )
-    )
-    st.altair_chart(conv_chart, use_container_width=True)
-
-st.divider()
-
-# ── Row 3: channel × month heatmap ─────────────────────────────────────────
+# ── Row 2: Channel × Month heatmap (full width) ────────────────────────────
 st.subheader("Signups by Channel and Month")
 df_heat = session.sql("""
     SELECT
-        TO_CHAR(DATE_TRUNC('month', signup_date), 'YYYY-MM') AS month,
-        signup_channel AS channel,
-        COUNT(*) AS signups
+        TO_CHAR(DATE_TRUNC('month', SIGNUP_DATE), 'YYYY-MM') AS MONTH,
+        SIGNUP_CHANNEL AS CHANNEL,
+        COUNT(*) AS SIGNUPS
     FROM PM_AGENTS_DEMO.APP.SIGNUPS
     GROUP BY 1, 2
+    ORDER BY 1, 2
 """).to_pandas()
 
 heatmap = (
     alt.Chart(df_heat)
     .mark_rect()
     .encode(
-        x=alt.X("month:O", title="Month", axis=alt.Axis(labelAngle=-45)),
-        y=alt.Y("CHANNEL:N", title=None),
+        x=alt.X("MONTH:O", title="Month", axis=alt.Axis(labelAngle=-45)),
+        y=alt.Y("CHANNEL:N", title=None, sort="-x"),
         color=alt.Color(
-            "signups:Q",
+            "SIGNUPS:Q",
             scale=alt.Scale(scheme="blues"),
             legend=alt.Legend(title="Signups"),
         ),
-        tooltip=["month:O", "CHANNEL:N", "signups:Q"],
+        tooltip=[
+            alt.Tooltip("MONTH:O", title="Month"),
+            alt.Tooltip("CHANNEL:N", title="Channel"),
+            alt.Tooltip("SIGNUPS:Q", title="Signups"),
+        ],
     )
-    .properties(height=200)
+    .properties(height=220)
 )
 st.altair_chart(heatmap, use_container_width=True)
