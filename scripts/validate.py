@@ -95,6 +95,10 @@ def main() -> int:
         if "$$" in text:
             errors.append(f"{path}: contains '$$' which breaks dollar-quoting in deploy SQL")
 
+        # Streamlit files are Python, not YAML — skip YAML parsing.
+        if typ == "streamlit":
+            continue
+
         try:
             spec = yaml.safe_load(text)
         except yaml.YAMLError as exc:
