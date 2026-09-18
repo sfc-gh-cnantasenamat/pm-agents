@@ -299,4 +299,39 @@ GRANT ALL ON FUTURE DATASETS IN SCHEMA PM_AGENTS_DEMO.APP TO ROLE PM_AGENTS_CI;
 -- stable and not reset by EXECUTE_AI_EVALUATION internal operations.
 GRANT OWNERSHIP ON DATASET PM_AGENTS_DEMO.APP.GROWTH_AGENT_EVAL TO ROLE PM_AGENTS_CI COPY CURRENT GRANTS;
 
+-- OWNER'S RIGHTS stored procedure that runs as ACCOUNTADMIN and fully resets
+-- the eval datasets before each CI run. Direct DROP by PM_AGENTS_CI leaves
+-- internal state that blocks GET_AI/ANALYST_EVALUATION_DATA reads; only an
+-- ACCOUNTADMIN-initiated drop clears it completely.
+CREATE OR REPLACE PROCEDURE PM_AGENTS_DEMO.APP.SP_RESET_EVAL_DATASETS()
+RETURNS VARCHAR
+LANGUAGE SQL
+EXECUTE AS OWNER
+AS
+$$
+BEGIN
+  -- Reset SV eval results dataset.
+  -- EXECUTE_AI_EVALUATION auto-recreates it owned by the calling role (PM_AGENTS_CI).
+  DROP DATASET IF EXISTS PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_SV_SYSTEM_EVAL;
+
+  -- Reset agent eval input dataset.
+  -- Dropping and recreating clears any accumulated internal results state.
+  DROP DATASET IF EXISTS PM_AGENTS_DEMO.APP.GROWTH_AGENT_EVAL;
+  CALL SYSTEM$CREATE_EVALUATION_DATASET(
+    'Cortex Agent',
+    'PM_AGENTS_DEMO.APP.EVAL_QUESTIONS',
+    'PM_AGENTS_DEMO.APP.GROWTH_AGENT_EVAL',
+    OBJECT_CONSTRUCT('query_text', 'INPUT_QUERY', 'expected_tools', 'EXPECTED_OUTPUT')
+  );
+  -- Transfer ownership to PM_AGENTS_CI so the role can read eval results.
+  EXECUTE IMMEDIATE
+    'GRANT OWNERSHIP ON DATASET PM_AGENTS_DEMO.APP.GROWTH_AGENT_EVAL TO ROLE PM_AGENTS_CI COPY CURRENT GRANTS';
+
+  RETURN 'Eval datasets reset complete';
+END;
+$$;
+
+GRANT USAGE ON PROCEDURE PM_AGENTS_DEMO.APP.SP_RESET_EVAL_DATASETS()
+  TO ROLE PM_AGENTS_CI;
+
 SELECT 'Setup complete. Register an RSA public key on PM_AGENTS_CI_USER, then run the GitHub Action.' AS STATUS;

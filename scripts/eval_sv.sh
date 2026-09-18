@@ -36,15 +36,18 @@ echo "Run name: $RUN_NAME"
 echo "Semantic view: $SV_FQN"
 
 # ── Housekeeping: drop the system eval dataset when it has too many versions ──
-# Drop the SV eval results dataset before every run.
-# GET_ANALYST_AI_EVALUATION_DATA returns null scores when the dataset has
-# more than 1 accumulated version — the stale-state bug triggers much earlier
-# than the original ~20 version estimate. Dropping it here forces a clean
-# recreation each run, which is the only reliable way to get valid scores.
+# Reset eval datasets via the OWNER'S RIGHTS stored procedure.
+# Only an ACCOUNTADMIN-initiated drop fully clears the internal state that
+# GET_ANALYST/AI_EVALUATION_DATA reads from. Calling the SP here lets
+# PM_AGENTS_CI trigger a clean reset without needing ACCOUNTADMIN credentials.
 SV_EVAL_DS="${SV_DB}.${SV_SCHEMA}.${SV_NAME}_SYSTEM_EVAL"
-echo "Dropping eval dataset to ensure a clean run: ${SV_EVAL_DS}"
-snow sql -q "DROP DATASET IF EXISTS ${SV_EVAL_DS};" --warehouse "$WAREHOUSE" || true
-echo "Eval dataset dropped — will be recreated fresh by EXECUTE_AI_EVALUATION."
+echo "Resetting eval datasets via SP_RESET_EVAL_DATASETS..."
+snow sql -q "CALL PM_AGENTS_DEMO.APP.SP_RESET_EVAL_DATASETS();" \
+  --warehouse "$WAREHOUSE" 2>&1 || {
+  echo "WARNING: SP_RESET_EVAL_DATASETS failed; falling back to direct drop of ${SV_EVAL_DS}"
+  snow sql -q "DROP DATASET IF EXISTS ${SV_EVAL_DS};" --warehouse "$WAREHOUSE" || true
+}
+echo "Eval datasets reset."
 # ─────────────────────────────────────────────────────────────────────────────
 
 snow sql -q "USE SCHEMA ${SV_DB}.${SV_SCHEMA}; PUT file://${EVAL_DIR}/analyst_eval_config.yaml @${EVAL_STAGE} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;" --warehouse "$WAREHOUSE"
