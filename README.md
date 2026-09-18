@@ -14,7 +14,7 @@ A five-stage GitHub Actions pipeline that validates, deploys, evaluates, and pro
 
 ```
 .github/workflows/deploy.yml   five-job GitHub Actions workflow
-cortex_project/                GROWTH_ANALYTICS_SV.osi.yaml, GROWTH_AGENT.agent.yaml,
+cortex_project/                GROWTH_ANALYTICS.osi.yaml, GROWTH_AGENT.agent.yaml,
                                GROWTH_ANALYTICS_APP.py, eval configs, manifest
 evals/thresholds.yaml          promotion floor scores
 requirements.txt               Python dependencies
