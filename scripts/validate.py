@@ -10,7 +10,7 @@ import sys
 import yaml
 
 MANIFEST = pathlib.Path("cortex_project/cortex-project.yaml")
-VALID_TYPES = {"semantic_view", "osi_semantic_view", "cortex_agent", "cortex_eval", "cortex_analyst_eval"}
+VALID_TYPES = {"semantic_view", "osi_semantic_view", "cortex_agent", "cortex_eval", "cortex_analyst_eval", "streamlit"}
 BUILTIN_METRICS = {
     "answer_correctness",
     "logical_consistency",

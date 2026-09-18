@@ -215,6 +215,38 @@ CREATE AGENT ${obj}
         fi
       fi
       ;;
+    streamlit)
+      db_schema="${obj%.*}"
+      st_name="${obj##*.}"
+      stage="@${db_schema}.STREAMLIT_STAGE"
+      abs_file="$(realpath "$file")"
+      if [[ "$DRY_RUN" == "true" ]]; then
+        echo "    (DRY_RUN) PUT file://${abs_file} ${stage}"
+        echo "    (DRY_RUN) CREATE OR REPLACE STREAMLIT ${obj} ROOT_LOCATION='${stage}' MAIN_FILE='${st_name}.py'"
+        SUCCEEDED+=("$path -> $obj")
+        continue
+      fi
+      snow sql -q "PUT file://${abs_file} ${stage} AUTO_COMPRESS=FALSE OVERWRITE=TRUE;" \
+        --warehouse "$WAREHOUSE"
+      sql="
+USE SCHEMA ${db_schema};
+CREATE OR REPLACE STREAMLIT ${obj}
+  ROOT_LOCATION = '${stage}'
+  MAIN_FILE = '${st_name}.py'
+  QUERY_WAREHOUSE = '${WAREHOUSE}';
+"
+      if run_sql "$sql"; then
+        echo "    OK"
+        SUCCEEDED+=("$path -> $obj")
+        db="${obj%%.*}"; rest="${obj#*.}"; sc="${rest%%.*}"; nm="${rest#*.}"
+        echo "    Streamlit app deployed. Open it in Snowsight:"
+        echo "    https://app.snowflake.com/<ORG>/<ACCOUNT>/#/streamlit-apps/database/${db}/schema/${sc}/app/${nm}"
+        echo "    (run: SELECT LOWER(CURRENT_ORGANIZATION_NAME()), LOWER(CURRENT_ACCOUNT_NAME());)"
+      else
+        echo "    FAILED"
+        FAILED+=("$path -> $obj")
+      fi
+      ;;
     *)
       echo "    ERROR: unknown artifact type '$typ'"
       FAILED+=("$path (unknown type: $typ)")

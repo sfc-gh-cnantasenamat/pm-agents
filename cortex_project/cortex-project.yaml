@@ -20,3 +20,8 @@ artifacts:
     targets:
       default:
         object: PM_AGENTS_DEMO.APP.GROWTH_AGENT
+  - path: GROWTH_ANALYTICS_APP.py
+    type: streamlit
+    targets:
+      default:
+        object: PM_AGENTS_DEMO.APP.GROWTH_ANALYTICS_APP
