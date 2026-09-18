@@ -13,7 +13,8 @@ st.set_page_config(layout="wide", page_title="Growth Analytics")
 session = ctx.get_active_session()
 
 st.title("Growth Analytics Dashboard")
-st.caption("Live data from PM_AGENTS_DEMO.APP — refreshed every time the CI pipeline deploys.")
+st.badge("PM_AGENTS_DEMO.APP", color="blue")
+st.caption("Live data — refreshed every time the CI pipeline deploys.")
 
 # ── KPI cards ──────────────────────────────────────────────────────────────
 kpis = session.sql("""
