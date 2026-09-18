@@ -64,7 +64,7 @@ with c2:
         .mark_arc(innerRadius=50)
         .encode(
             theta=alt.Theta("REVENUE:Q"),
-            color=alt.Color("PLAN_TYPE:N", legend=alt.Legend(title="Plan")),
+            color=alt.Color("PLAN_TYPE:N", legend=alt.Legend(title="Plan", orient="bottom")),
             tooltip=[
                 alt.Tooltip("PLAN_TYPE:N", title="Plan"),
                 alt.Tooltip("REVENUE:Q", title="Revenue", format="$,.0f"),
@@ -94,7 +94,7 @@ with c3:
             color=alt.Color(
                 "SIGNUPS:Q",
                 scale=alt.Scale(scheme="blues"),
-                legend=alt.Legend(title="Signups"),
+                legend=alt.Legend(title="Signups", orient="bottom"),
             ),
             tooltip=[
                 alt.Tooltip("MONTH:O", title="Month"),
