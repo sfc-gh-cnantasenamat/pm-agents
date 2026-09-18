@@ -49,7 +49,7 @@ with c1:
         FROM PM_AGENTS_DEMO.APP.SIGNUPS
         GROUP BY 1 ORDER BY 2 DESC
     """).to_pandas()
-    st.bar_chart(df_bar.set_index("SIGNUP_CHANNEL"), use_container_width=True)
+    st.bar_chart(df_bar.set_index("SIGNUP_CHANNEL"), use_container_width=True, height=400)
 
 with c2:
     st.subheader("Revenue by Plan Type")
@@ -70,7 +70,7 @@ with c2:
                 alt.Tooltip("REVENUE:Q", title="Revenue", format="$,.0f"),
             ],
         )
-        .properties(height=300)
+        .properties(height=400)
     )
     st.altair_chart(pie, use_container_width=True)
 
@@ -102,6 +102,6 @@ with c3:
                 alt.Tooltip("SIGNUPS:Q", title="Signups"),
             ],
         )
-        .properties(height=300)
+        .properties(height=400)
     )
     st.altair_chart(heatmap, use_container_width=True)
