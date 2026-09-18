@@ -24,7 +24,7 @@ POLL_SECONDS="${POLL_SECONDS:-30}"
 MAX_POLLS="${MAX_POLLS:-40}"
 AGENT_VERSION="${AGENT_VERSION:-LAST}"
 THRESHOLDS_FILE="${THRESHOLDS_FILE:-evals/thresholds.yaml}"
-EVAL_DIR="${EVAL_DIR:-/tmp/pm-agents-eval}"
+EVAL_DIR="${EVAL_DIR:-/tmp/sv-eval-cicd-eval}"
 
 AGENT_DB="${AGENT_FQN%%.*}"
 AGENT_REST="${AGENT_FQN#*.}"

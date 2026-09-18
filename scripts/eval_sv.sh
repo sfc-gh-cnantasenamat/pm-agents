@@ -20,7 +20,7 @@ RUN_NAME="${RUN_NAME:-GROWTH_SV_EVAL_$(date -u +%Y%m%d_%H%M%S)}"
 POLL_SECONDS="${POLL_SECONDS:-30}"
 MAX_POLLS="${MAX_POLLS:-40}"
 THRESHOLDS_FILE="${THRESHOLDS_FILE:-evals/thresholds.yaml}"
-EVAL_DIR="${EVAL_DIR:-/tmp/pm-agents-eval-sv}"
+EVAL_DIR="${EVAL_DIR:-/tmp/sv-eval-cicd-eval-sv}"
 EVAL_YAML="${EVAL_YAML:-cortex_project/growth_analytics_sv.eval.yaml}"
 
 SV_DB="${SV_FQN%%.*}"
