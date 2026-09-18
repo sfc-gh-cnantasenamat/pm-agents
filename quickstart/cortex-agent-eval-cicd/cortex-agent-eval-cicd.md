@@ -253,7 +253,7 @@ Push to `main`. The pipeline runs again, evals pass, and `promote` flips the def
 <!-- ------------------------ -->
 ## Use a Git Workspace
 
-Git-backed Snowsight Workspaces let you edit the same YAML files through a browser UI and have the CI pipeline pick up your changes automatically — without installing any local tooling.
+Git-backed Snowsight Workspaces let you edit the same YAML files through a browser UI and have the CI/CD pipeline pick up your changes automatically — without installing any local tooling.
 
 ### Connect a workspace to the repo
 
@@ -282,7 +282,7 @@ Congratulations! You've successfully built a five-stage eval-gated CI/CD pipelin
 - How Cortex Agent versioning lets you accumulate candidate versions on the shelf without disrupting live traffic
 - How to use Cortex Analyst and Cortex Agent evaluations as hard CI gates that block promotion on regressions
 - How to simulate a regression and verify the gate catches it before users are affected
-- How to author YAML changes from a git-backed Snowsight Workspace and feed them directly into the CI pipeline
+- How to author YAML changes from a git-backed Snowsight Workspace and feed them directly into the CI/CD pipeline
 
 ### Related Resources
 

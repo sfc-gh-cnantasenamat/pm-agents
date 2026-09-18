@@ -1,6 +1,6 @@
 """
 Growth Analytics Dashboard
-Streamlit-in-Snowflake app deployed by the CI pipeline alongside
+Streamlit-in-Snowflake app deployed by the CI/CD pipeline alongside
 GROWTH_ANALYTICS_SV and GROWTH_AGENT. Queries the demo tables directly.
 """
 
@@ -13,7 +13,7 @@ st.set_page_config(layout="wide", page_title="Growth Analytics")
 session = ctx.get_active_session()
 
 st.title("Growth Analytics Dashboard")
-st.caption("Live data from PM_AGENTS_DEMO.APP — refreshed every time the CI pipeline deploys.")
+st.caption("Live data from PM_AGENTS_DEMO.APP — refreshed every time the CI/CD pipeline deploys.")
 
 # ── KPI cards ──────────────────────────────────────────────────────────────
 kpis = session.sql("""
