@@ -34,10 +34,10 @@ kc3.metric("Total MRR",       f'${kpis["TOTAL_MRR"][0]:,.0f}')
 
 st.divider()
 
-# ── Row 1: Bar chart (left) + Pie chart (right) ────────────────────────────
-r1c1, r1c2 = st.columns(2)
+# ── Charts: 3 equal columns on one row ─────────────────────────────────────
+c1, c2, c3 = st.columns(3)
 
-with r1c1:
+with c1:
     st.subheader("Signups by Channel")
     df_bar = session.sql("""
         SELECT SIGNUP_CHANNEL, COUNT(*) AS SIGNUPS
@@ -46,7 +46,7 @@ with r1c1:
     """).to_pandas()
     st.bar_chart(df_bar.set_index("SIGNUP_CHANNEL"), use_container_width=True)
 
-with r1c2:
+with c2:
     st.subheader("Revenue by Plan Type")
     df_pie = session.sql("""
         SELECT PLAN_TYPE, ROUND(SUM(MRR_AMOUNT), 2) AS REVENUE
@@ -69,37 +69,34 @@ with r1c2:
     )
     st.altair_chart(pie, use_container_width=True)
 
-st.divider()
-
-# ── Row 2: Channel × Month heatmap (full width) ────────────────────────────
-st.subheader("Signups by Channel and Month")
-df_heat = session.sql("""
-    SELECT
-        TO_CHAR(DATE_TRUNC('month', SIGNUP_DATE), 'YYYY-MM') AS MONTH,
-        SIGNUP_CHANNEL AS CHANNEL,
-        COUNT(*) AS SIGNUPS
-    FROM PM_AGENTS_DEMO.APP.SIGNUPS
-    GROUP BY 1, 2
-    ORDER BY 1, 2
-""").to_pandas()
-
-heatmap = (
-    alt.Chart(df_heat)
-    .mark_rect()
-    .encode(
-        x=alt.X("MONTH:O", title="Month", axis=alt.Axis(labelAngle=-45)),
-        y=alt.Y("CHANNEL:N", title=None, sort="-x"),
-        color=alt.Color(
-            "SIGNUPS:Q",
-            scale=alt.Scale(scheme="blues"),
-            legend=alt.Legend(title="Signups"),
-        ),
-        tooltip=[
-            alt.Tooltip("MONTH:O", title="Month"),
-            alt.Tooltip("CHANNEL:N", title="Channel"),
-            alt.Tooltip("SIGNUPS:Q", title="Signups"),
-        ],
+with c3:
+    st.subheader("Signups by Channel & Month")
+    df_heat = session.sql("""
+        SELECT
+            TO_CHAR(DATE_TRUNC('month', SIGNUP_DATE), 'YYYY-MM') AS MONTH,
+            SIGNUP_CHANNEL AS CHANNEL,
+            COUNT(*) AS SIGNUPS
+        FROM PM_AGENTS_DEMO.APP.SIGNUPS
+        GROUP BY 1, 2
+        ORDER BY 1, 2
+    """).to_pandas()
+    heatmap = (
+        alt.Chart(df_heat)
+        .mark_rect()
+        .encode(
+            x=alt.X("MONTH:O", title="Month", axis=alt.Axis(labelAngle=-45)),
+            y=alt.Y("CHANNEL:N", title=None, sort="-x"),
+            color=alt.Color(
+                "SIGNUPS:Q",
+                scale=alt.Scale(scheme="blues"),
+                legend=alt.Legend(title="Signups"),
+            ),
+            tooltip=[
+                alt.Tooltip("MONTH:O", title="Month"),
+                alt.Tooltip("CHANNEL:N", title="Channel"),
+                alt.Tooltip("SIGNUPS:Q", title="Signups"),
+            ],
+        )
+        .properties(height=300)
     )
-    .properties(height=220)
-)
-st.altair_chart(heatmap, use_container_width=True)
+    st.altair_chart(heatmap, use_container_width=True)
